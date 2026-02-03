@@ -1,7 +1,7 @@
-import { Ph } from "telegraph-node";
+import Telegraph from "telegraph-node";
 import { marked } from "marked";
 
-const ph = new Ph();
+const ph = new Telegraph();
 
 // User should persist this token. For serverless, we'll try to use an env var, 
 // or create a new account if missing (not ideal for editing, but fine for archiving).
