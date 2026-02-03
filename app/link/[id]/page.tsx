@@ -138,7 +138,12 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                 {/* Render Telegra.ph Content Inline */}
                 {telegraphContentNodes.length > 0 && (
                     <div className="section">
-                        <div className="section-title">原文内容</div>
+                        <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>原文内容</span>
+                            <a href={link.archiveUrl} target="_blank" style={{ fontSize: '0.85rem', fontWeight: 'normal', textDecoration: 'none', opacity: 0.8 }}>
+                                ⚡️ Instant View
+                            </a>
+                        </div>
                         <div className="content">
                             <TelegraphRenderer nodes={telegraphContentNodes} />
                         </div>
