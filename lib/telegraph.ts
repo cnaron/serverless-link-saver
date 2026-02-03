@@ -205,8 +205,8 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
     const finalNodes = [...headerNodes, ...contentNodes];
 
     const page = await ph.createPage(token!, opts.title, finalNodes, {
-        author_name: "LinkSaver AI",
-        author_url: opts.url, // Link author name to original URL
+        author_name: opts.url.length > 128 ? opts.url.substring(0, 125) + "..." : opts.url,
+        author_url: opts.url,
         return_content: true
     });
 
