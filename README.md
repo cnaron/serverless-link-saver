@@ -2,6 +2,8 @@
 
 一个云原生、无服务器 (Serverless) 的个人知识收藏夹。
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcnaron%2Fserverless-link-saver&env=TELEGRAM_BOT_TOKEN,NOTION_KEY,NOTION_DATABASE_ID,GEMINI_API_KEY)
+
 > **致敬与灵感**: 本项目深受 **[LinkMind](https://github.com/reorx/linkmind)** (by [reorx](https://github.com/reorx)) 的启发。我们的目标是构建一个 **100% Serverless** 的架构，复刻其核心的"稍后读"与 AI 分析体验，同时实现零成本维护。
 
 ## 🧠 核心理念：本地优先 (Local First) & 云原生
