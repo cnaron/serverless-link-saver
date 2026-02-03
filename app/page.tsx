@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -15,7 +13,7 @@ interface LinkItem {
   notionUrl: string;
 }
 
-export default function Home() {
+function LinkList() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tagFilter = searchParams.get('tag');
@@ -56,7 +54,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-12">
+    <>
       <header className="max-w-5xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <Link href="/">
@@ -168,6 +166,16 @@ export default function Home() {
           )}
         </div>
       )}
+    </>
+  );
+}
+
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-12">
+      <Suspense fallback={<div className="text-center py-12 text-zinc-500">Loading...</div>}>
+        <LinkList />
+      </Suspense>
     </div>
   );
 }
