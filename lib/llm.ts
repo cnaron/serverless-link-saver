@@ -66,7 +66,10 @@ export async function summarizeContent(
         const result = await model.generateContent(prompt);
         const text = result.response.text();
 
-        return JSON.parse(text) as LinkSummary;
+        // Clean up markdown code blocks if present
+        const cleanText = text.replace(/```json\n?|\n?```/g, "").trim();
+
+        return JSON.parse(cleanText) as LinkSummary;
     } catch (error) {
         console.error("Error summarizing content with Gemini:", error);
         throw error;
