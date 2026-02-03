@@ -57,7 +57,7 @@ export async function summarizeContent(
 
       Output a JSON object with:
       - title: A concise and descriptive title.
-      - summary: A 2-3 sentence summary (mentions context if relevant).
+      - summary: A 2-3 sentence summary (mentions context if relevant). Answer in Chinese (Simplified).
       - tags: An array of 3-5 relevant hashtags (strings, no #).
       - category: One of ["Tech", "News", "Design", "Tutorial", "Other"].
       

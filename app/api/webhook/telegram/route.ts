@@ -57,9 +57,10 @@ export async function POST(req: NextRequest) {
                     await saveBookmark(summary, url, content);
 
                     // Success Message
+                    const tagsString = summary.tags.map(t => `#${t}`).join(" ");
                     await bot.telegram.sendMessage(
                         chatId,
-                        `✅ *Saved!*\n\n*${summary.title}*\n_${summary.category}_\n\n${summary.summary}`,
+                        `✅ *已保存!*\n\n*${summary.title}*\n_${summary.category}_  ${tagsString}\n\n${summary.summary}`,
                         { parse_mode: "Markdown" }
                     );
 
