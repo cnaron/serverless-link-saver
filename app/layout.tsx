@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <header className="site-header">
-          <a href="/">🧠 公子欢摘抄的地方</a>
+          <a href="/">🧠 公子欢的摘抄本</a>
         </header>
         <div className="page-body">
           {children}
