@@ -32,7 +32,7 @@ export async function saveBookmark(data: LinkSummary, url: string, content?: str
             }
         }
 
-        await notion.pages.create({
+        const response = await notion.pages.create({
             parent: { database_id: databaseId },
             properties: {
                 Name: {
@@ -53,7 +53,7 @@ export async function saveBookmark(data: LinkSummary, url: string, content?: str
             },
             children: blocks
         });
-        return true;
+        return (response as any).url;
     } catch (error) {
         console.error("Error saving to Notion:", error);
         throw error;

@@ -54,13 +54,13 @@ export async function POST(req: NextRequest) {
                     const summary = await summarizeContent(content, url, similarBookmarks);
 
                     // C. Notion
-                    await saveBookmark(summary, url, content);
+                    const notionUrl = await saveBookmark(summary, url, content) as string;
 
                     // Success Message
                     const tagsString = summary.tags.map(t => `#${t}`).join(" ");
                     await bot.telegram.sendMessage(
                         chatId,
-                        `✅ *已保存!*\n\n*${summary.title}*\n_${summary.category}_  ${tagsString}\n\n${summary.summary}`,
+                        `✅ *已保存!*\n\n*${summary.title}*\n_${summary.category}_  ${tagsString}\n\n${summary.summary}\n\n[🔗 Open in Notion](${notionUrl})`,
                         { parse_mode: "Markdown" }
                     );
 
