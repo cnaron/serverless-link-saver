@@ -23,38 +23,108 @@ export async function createAccount(shortName: string, authorName: string) {
  * Note: telegraph-node's types might be tricky. The API expects an array of Nodes.
  * Node = String | { tag: string, attrs?: object, children?: Node[] }
  */
+/**
+ * Converts Marked tokens to Telegraph Nodes recursively.
+ */
+function processToken(token: any): any {
+    // 1. Text Nodes
+    if (token.type === 'text' || token.type === 'escape') {
+        // If the text token has nested tokens (inline formatting), process them recursively
+        if (token.tokens) {
+            return token.tokens.map(processToken);
+        }
+        return token.text;
+    }
+
+    // 2. Inline Formatting
+    if (token.type === 'strong') {
+        return { tag: 'b', children: token.tokens.map(processToken) };
+    }
+    if (token.type === 'em') {
+        return { tag: 'i', children: token.tokens.map(processToken) };
+    }
+    if (token.type === 'del') {
+        return { tag: 's', children: token.tokens.map(processToken) };
+    }
+    if (token.type === 'codespan') {
+        return { tag: 'code', children: [token.text] };
+    }
+    if (token.type === 'link') {
+        return {
+            tag: 'a',
+            attrs: { href: token.href },
+            children: token.tokens.map(processToken)
+        };
+    }
+    if (token.type === 'image') {
+        return {
+            tag: 'img',
+            attrs: { src: token.href },
+            children: [] // Images are void elements in Telegraph usually
+        };
+    }
+    if (token.type === 'br' || token.type === 'space') {
+        return { tag: 'br' };
+    }
+
+    // 3. Block Elements
+    if (token.type === 'paragraph') {
+        return { tag: 'p', children: token.tokens.map(processToken) };
+    }
+    if (token.type === 'heading') {
+        // Telegraph only supports h3 and h4. Map h1/h2 -> h3
+        const tag = token.depth <= 2 ? 'h3' : 'h4';
+        return { tag, children: token.tokens.map(processToken) };
+    }
+    if (token.type === 'list') {
+        const tag = token.ordered ? 'ol' : 'ul';
+        return {
+            tag,
+            children: token.items.map(processToken)
+        };
+    }
+    if (token.type === 'list_item') {
+        return {
+            tag: 'li',
+            children: token.tokens.map(processToken)
+        };
+    }
+    if (token.type === 'blockquote') {
+        return {
+            tag: 'blockquote',
+            children: token.tokens.map(processToken)
+        };
+    }
+    if (token.type === 'code') {
+        return {
+            tag: 'pre',
+            children: [{
+                tag: 'code',
+                children: [token.text]
+            }]
+        };
+    }
+
+    // Fallback for unknown elements -> string representation only
+    // Ideally we shouldn't hit this often if we cover standard tokens
+    if (token.text) return token.text;
+    return "";
+}
+
 function markdownToNodes(markdown: string): any[] {
     const tokens = marked.lexer(markdown);
+
+    // Flatten the result of mapping, as processToken can return arrays (fragment-like) 
+    // or single objects
     const nodes: any[] = [];
 
-    tokens.forEach((token: any) => {
-        if (token.type === 'heading') {
-            const tag = token.depth <= 2 ? 'h3' : 'h4'; // Telegraph only supports h3, h4
-            nodes.push({ tag, children: [token.text] });
-        } else if (token.type === 'paragraph') {
-            nodes.push({ tag: 'p', children: [token.text] });
-        } else if (token.type === 'list') {
-            const tag = token.ordered ? 'ol' : 'ul';
-            const children = token.items.map((item: any) => ({
-                tag: 'li',
-                children: [item.text]
-            }));
-            nodes.push({ tag, children });
-        } else if (token.type === 'blockquote') {
-            nodes.push({ tag: 'blockquote', children: [token.text] });
-        } else if (token.type === 'code') {
-            nodes.push({ tag: 'pre', children: [token.text] });
-        } else if (token.type === 'image') {
-            nodes.push({
-                tag: 'img',
-                attrs: { src: token.href },
-                children: [token.title || token.text || 'Image']
-            });
+    tokens.forEach(token => {
+        const result = processToken(token);
+        if (Array.isArray(result)) {
+            nodes.push(...result);
+        } else if (result) {
+            nodes.push(result);
         }
-        // Simplified: skipping links formatting within text for now, 
-        // as parsing nested markdown to DOM nodes is complex without a DOM parser.
-        // Ideally we'd use a parser like `dom-serializer` or similar if we want rich text.
-        // For now, plain text block structure is better than nothing.
     });
 
     return nodes;
