@@ -33,7 +33,6 @@ export interface StoredLink {
 }
 
 // ─── Save Bookmark ───
-// ─── Save Bookmark ───
 export async function saveBookmark(data: BookmarkData, url: string, archiveUrl?: string): Promise<string> {
     try {
         const response = await notion.pages.create({
@@ -70,7 +69,7 @@ export async function getRecentLinks(limit: number = 20): Promise<StoredLink[]> 
                 page_size: limit,
                 sorts: [{ timestamp: 'created_time', direction: 'descending' }]
             }),
-            cache: 'no-store'
+            next: { revalidate: 60 }
         });
 
         if (!response.ok) {
@@ -79,7 +78,7 @@ export async function getRecentLinks(limit: number = 20): Promise<StoredLink[]> 
         }
 
         const data = await response.json();
-        return data.results.map((page: any): StoredLink => {
+        const links = data.results.map((page: any): StoredLink => {
             const props = page.properties;
             return {
                 id: page.id,
@@ -94,6 +93,13 @@ export async function getRecentLinks(limit: number = 20): Promise<StoredLink[]> 
                 created_time: page.created_time,
             };
         });
+
+        // Filter out empty or untitled links
+        return links.filter((link: StoredLink) =>
+            link.title !== "Untitled" &&
+            link.url !== "#" &&
+            link.title.trim() !== ""
+        );
     } catch (error) {
         console.error("Error fetching recent links:", error);
         return [];
@@ -122,7 +128,7 @@ export async function searchRelatedLinks(tags: string[], limit: number = 5): Pro
                 filter: { or: orFilters },
                 sorts: [{ timestamp: 'created_time', direction: 'descending' }]
             }),
-            cache: 'no-store'
+            next: { revalidate: 300 }
         });
 
         if (!response.ok) {

@@ -23,8 +23,13 @@ function formatDateLabel(isoString: string | undefined): string {
   // Format: "YYYY-MM-DD" e.g. "2024-02-03"
   // LinkMind uses a specific format, let's try to match standard "Sept 23, 2024" or similar if we want 
   // But home.ejs just prints `item._dayLabel`. 
-  // Let's use locale date string for now, or just YYYY-MM-DD for simplicity/consistency.
-  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+  // Use locale date string with explicit Beijing timezone
+  return date.toLocaleDateString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 }
 
 function LinkList() {
@@ -132,7 +137,12 @@ function LinkList() {
                   <div className="card-meta">
                     <a href={link.url} target="_blank">{link.url}</a>
                     {/* Add time if available, e.g. · 14:00 */}
-                    {link.created_time && ` · ${new Date(link.created_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`}
+                    {link.created_time && ` · ${new Date(link.created_time).toLocaleTimeString('zh-CN', {
+                      timeZone: 'Asia/Shanghai',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false
+                    })}`}
                   </div>
 
                   {/* Summary in details/summary like LinkMind */}
