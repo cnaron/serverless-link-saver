@@ -28,104 +28,25 @@ export interface StoredLink {
     category: string;
     tags: string[];
     notionUrl: string;
-}
-
-// ─── Markdown to Notion Blocks ───
-function convertMarkdownToBlocks(markdown: string): any[] {
-    const tokens = marked.lexer(markdown);
-    const blocks: any[] = [];
-
-    tokens.forEach((token: any) => {
-        if (token.type === 'heading') {
-            const type = `heading_${Math.min(token.depth, 3)}` as any;
-            blocks.push({
-                object: 'block',
-                type: type,
-                [type]: {
-                    rich_text: [{ text: { content: token.text.slice(0, 2000) } }]
-                }
-            });
-        } else if (token.type === 'paragraph') {
-            blocks.push({
-                object: 'block',
-                type: 'paragraph',
-                paragraph: {
-                    rich_text: [{ text: { content: token.text.slice(0, 2000) } }]
-                }
-            });
-        } else if (token.type === 'list') {
-            token.items?.forEach((item: any) => {
-                blocks.push({
-                    object: 'block',
-                    type: 'bulleted_list_item',
-                    bulleted_list_item: {
-                        rich_text: [{ text: { content: (item.text || '').slice(0, 2000) } }]
-                    }
-                });
-            });
-        } else if (token.type === 'blockquote') {
-            blocks.push({
-                object: 'block',
-                type: 'quote',
-                quote: {
-                    rich_text: [{ text: { content: token.text.slice(0, 2000) } }]
-                }
-            });
-        } else if (token.type === 'code') {
-            blocks.push({
-                object: 'block',
-                type: 'code',
-                code: {
-                    language: token.lang || 'plain text',
-                    rich_text: [{ text: { content: token.text.slice(0, 2000) } }]
-                }
-            });
-        }
-    });
-
-    return blocks.slice(0, 99);
+    archiveUrl?: string; // Add archiveUrl to stored link type
 }
 
 // ─── Save Bookmark ───
-export async function saveBookmark(data: BookmarkData, url: string, content?: string): Promise<string> {
+// ─── Save Bookmark ───
+export async function saveBookmark(data: BookmarkData, url: string, archiveUrl?: string): Promise<string> {
     try {
-        let blocks: any[] = [];
-
-        if (content) {
-            try {
-                blocks.push({
-                    object: 'block',
-                    type: 'heading_1',
-                    heading_1: { rich_text: [{ text: { content: 'Full Content Archive' } }] }
-                });
-                blocks = [...blocks, ...convertMarkdownToBlocks(content)];
-            } catch {
-                const chunks = content.match(/.{1,2000}/g) || [];
-                for (const chunk of chunks) {
-                    blocks.push({
-                        object: 'block',
-                        type: 'paragraph',
-                        paragraph: { rich_text: [{ text: { content: chunk } }] }
-                    });
-                }
-            }
-        }
-
-        if (blocks.length > 100) {
-            blocks = blocks.slice(0, 100);
-        }
-
         const response = await notion.pages.create({
             parent: { database_id: databaseId },
             properties: {
                 Name: { title: [{ text: { content: data.title } }] },
                 URL: { url: url },
+                ArchiveURL: { url: archiveUrl || null }, // New property for Telegra.ph link
                 Tags: { multi_select: data.tags.map(tag => ({ name: tag })) },
                 Category: { select: { name: data.category } },
                 Summary: { rich_text: [{ text: { content: data.summary.slice(0, 2000) } }] },
                 Insight: { rich_text: [{ text: { content: data.insight.slice(0, 2000) } }] },
             },
-            children: blocks
+            // No children blocks anymore (content is in Telegra.ph)
         });
         return (response as any).url;
     } catch (error) {
@@ -167,6 +88,7 @@ export async function getRecentLinks(limit: number = 20): Promise<StoredLink[]> 
                 category: props.Category?.select?.name || "Other",
                 tags: props.Tags?.multi_select?.map((t: any) => t.name) || [],
                 notionUrl: page.url,
+                archiveUrl: props.ArchiveURL?.url || undefined,
             };
         });
     } catch (error) {

@@ -3,6 +3,7 @@ import { Telegraf } from "telegraf";
 import { fetchPageContent } from "@/lib/jina";
 import { generateSummary, generateInsight, inferCategory } from "@/lib/llm";
 import { saveBookmark, searchRelatedLinks, BookmarkData } from "@/lib/notion";
+import { createTelegraphPage } from "@/lib/telegraph";
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
 
@@ -57,7 +58,16 @@ export async function POST(req: NextRequest) {
                         relatedLinks
                     });
 
-                    // ─── Stage 5: Infer Category & Save to Notion ───
+                    // ─── Stage 5: Upload to Telegra.ph ───
+                    let telegraphUrl = "";
+                    try {
+                        telegraphUrl = await createTelegraphPage(title, content);
+                    } catch (e) {
+                        console.error("Telegra.ph upload failed:", e);
+                        // Continue without telegraphUrl if fails
+                    }
+
+                    // ─── Stage 6: Infer Category & Save to Notion ───
                     const category = inferCategory(summaryResult.tags);
                     const bookmarkData: BookmarkData = {
                         title,
@@ -67,9 +77,9 @@ export async function POST(req: NextRequest) {
                         category
                     };
 
-                    const notionUrl = await saveBookmark(bookmarkData, url, content);
+                    const notionUrl = await saveBookmark(bookmarkData, url, telegraphUrl); // Pass archiveUrl
 
-                    // ─── Stage 6: Send Telegram Response ───
+                    // ─── Stage 7: Send Telegram Response ───
                     const escapeHtml = (str: string) => str
                         .replace(/&/g, "&amp;")
                         .replace(/</g, "&lt;")
@@ -80,28 +90,47 @@ export async function POST(req: NextRequest) {
                     const safeInsight = escapeHtml(insight);
                     const safeTags = summaryResult.tags.map(t => `#${escapeHtml(t)}`).join(" ");
 
+                    // Estimate reading time (approx 500 chars per minute for Chinese/mixed content)
+                    const readingTime = Math.ceil(content.length / 500);
+
                     const host = req.headers.get("host") || "serverless-link-saver.vercel.app";
                     const protocol = host.includes("localhost") ? "http" : "https";
                     const appUrl = `${protocol}://${host}`;
 
+                    // Message Format:
+                    // [Title Link to Telegra.ph (Instant View)]
+                    // 原文: [Original URL]
+                    // 阅读时间: [Time] 分钟
+                    //
+                    // [Summary]
+                    //
+                    // [Insight]
+                    //
+                    // [Footer Links]
+
                     const message = [
-                        `✅ <b>已保存!</b>`,
+                        `<a href="${telegraphUrl}"><b>${safeTitle}</b></a>`,
+                        `原文：${url}`,
+                        `阅读时间：${readingTime} 分钟`,
                         ``,
-                        `<b>${safeTitle}</b>`,
-                        `<i>${category}</i>  ${safeTags}`,
-                        ``,
-                        `📝 <b>摘要：</b>`,
+                        `📝 <b>摘要</b>`,
                         safeSummary,
                         ``,
-                        `💡 <b>AI 洞见：</b>`,
+                        `💡 <b>AI 洞见</b>`,
                         safeInsight,
+                        ``,
+                        `<i>${category}</i>  ${safeTags}`,
                         ``,
                         `<a href="${notionUrl}">🔗 Notion</a>  |  <a href="${appUrl}">🌌 知识库</a>`
                     ].join('\n');
 
                     await bot.telegram.sendMessage(chatId, message, {
                         parse_mode: "HTML",
-                        link_preview_options: { is_disabled: true }
+                        link_preview_options: {
+                            is_disabled: false,
+                            url: telegraphUrl, // Explicitly force the preview to be the Telegraph URL
+                            prefer_large_media: true
+                        }
                     });
 
                 } catch (err) {
