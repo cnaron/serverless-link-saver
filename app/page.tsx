@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface LinkItem {
@@ -15,38 +16,54 @@ interface LinkItem {
 }
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tagFilter = searchParams.get('tag');
+
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/links")
-      .then((res) => {
+    const fetchLinks = async () => {
+      setLoading(true);
+      try {
+        const url = tagFilter
+          ? `/api/links?tag=${encodeURIComponent(tagFilter)}`
+          : '/api/links';
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
+        const data = await res.json();
         if (Array.isArray(data)) {
           setLinks(data);
+          setError(null);
         } else {
           setError(data.error || "Unknown error");
         }
-        setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error(err);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
         setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchLinks();
+  }, [tagFilter]);
+
+  const clearFilter = () => {
+    router.push('/');
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-12">
-      <header className="max-w-5xl mx-auto mb-12 flex flex-col md:flex-row justify-between items-center gap-4">
+      <header className="max-w-5xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-            LinkMind Serverless
-          </h1>
+          <Link href="/">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              LinkMind Serverless
+            </h1>
+          </Link>
           <p className="text-zinc-500 mt-2">Personal AI Knowledge Base • {links.length} Items</p>
         </div>
         <Link
@@ -57,6 +74,21 @@ export default function Home() {
           View Docs
         </Link>
       </header>
+
+      {/* Tag Filter Banner */}
+      {tagFilter && (
+        <div className="max-w-5xl mx-auto mb-6 p-4 bg-emerald-900/20 border border-emerald-800 rounded-lg flex items-center justify-between">
+          <p className="text-emerald-300">
+            Filtering by tag: <span className="font-mono font-bold">#{tagFilter}</span>
+          </p>
+          <button
+            onClick={clearFilter}
+            className="text-sm text-zinc-400 hover:text-white transition-colors"
+          >
+            ✕ Clear Filter
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="max-w-5xl mx-auto mb-8 p-4 bg-red-900/20 border border-red-800 rounded-lg text-red-300">
@@ -92,38 +124,48 @@ export default function Home() {
                 </a>
               </div>
 
-              {/* Title */}
+              {/* Title - Links to detail page */}
               <h2 className="text-xl font-semibold mb-4 leading-snug group-hover:text-emerald-300 transition-colors">
-                <a href={link.url} target="_blank">{link.title}</a>
+                <Link href={`/link/${link.id}`}>{link.title}</Link>
               </h2>
 
               {/* Summary */}
               <div className="mb-4">
-                <p className="text-sm text-zinc-400 leading-relaxed">
+                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3">
                   {link.summary}
                 </p>
               </div>
 
               {/* Insight (if exists) */}
               {link.insight && (
-                <div className="mb-4 p-4 bg-amber-900/20 border-l-4 border-amber-500/50 rounded-r-lg">
+                <div className="mb-4 p-3 bg-amber-900/20 border-l-4 border-amber-500/50 rounded-r-lg">
                   <p className="text-xs text-amber-400 font-medium mb-1">💡 AI 洞见</p>
-                  <p className="text-sm text-amber-100/80 leading-relaxed">
+                  <p className="text-sm text-amber-100/80 leading-relaxed line-clamp-2">
                     {link.insight}
                   </p>
                 </div>
               )}
 
-              {/* Tags */}
+              {/* Tags - Clickable for filtering */}
               <div className="flex flex-wrap gap-2">
                 {link.tags.slice(0, 5).map((tag) => (
-                  <span key={tag} className="text-xs text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-zinc-800">
+                  <Link
+                    key={tag}
+                    href={`/?tag=${encodeURIComponent(tag)}`}
+                    className="text-xs text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-zinc-800 hover:border-emerald-500/50 hover:text-emerald-400 transition-colors"
+                  >
                     #{tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </article>
           ))}
+
+          {links.length === 0 && !loading && (
+            <div className="text-center py-12 text-zinc-500">
+              {tagFilter ? `No articles found with tag "${tagFilter}"` : "No articles saved yet. Send a link to your Telegram bot!"}
+            </div>
+          )}
         </div>
       )}
     </div>
