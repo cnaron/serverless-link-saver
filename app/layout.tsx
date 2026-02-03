@@ -17,7 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {children}
+        <header className="site-header">
+          <a href="/">🧠 LinkMind</a>
+        </header>
+        <div className="page-body">
+          {children}
+        </div>
       </body>
     </html>
   );

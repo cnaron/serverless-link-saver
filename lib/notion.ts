@@ -29,6 +29,7 @@ export interface StoredLink {
     tags: string[];
     notionUrl: string;
     archiveUrl?: string; // Add archiveUrl to stored link type
+    created_time: string; // ISO string from Notion
 }
 
 // ─── Save Bookmark ───
@@ -89,6 +90,7 @@ export async function getRecentLinks(limit: number = 20): Promise<StoredLink[]> 
                 tags: props.Tags?.multi_select?.map((t: any) => t.name) || [],
                 notionUrl: page.url,
                 archiveUrl: props.ArchiveURL?.url || undefined,
+                created_time: page.created_time,
             };
         });
     } catch (error) {
