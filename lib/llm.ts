@@ -57,7 +57,7 @@ export async function summarizeContent(
 
       Output a JSON object with:
       - title: A concise and descriptive title.
-      - summary: A 2-3 sentence summary (mentions context if relevant). Answer in Chinese (Simplified).
+      - summary: A deep, insightful summary in Chinese (Simplified). Do not just recap. Extract key insights, "Aha!" moments, and value propositions. Structure it as a short paragraph followed by 3 bullet points of "Key Takeaways". 
       - tags: An array of 3-5 relevant hashtags (strings, no #).
       - category: One of ["Tech", "News", "Design", "Tutorial", "Other"].
       
