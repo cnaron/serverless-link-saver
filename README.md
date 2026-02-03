@@ -87,24 +87,27 @@ npx ts-node scripts/init-notion.ts <YOUR_PAGE_ID>
 *   **LLM**: Google Gemini (via `google-generative-ai`)
 *   **网页解析**: Jina Reader API
 ### ✨ New Features (v2.0)
-- **Instant View (Telegra.ph)**: Articles are archived to Telegra.ph for instant reading on Telegram.
-- **Improved AI Analysis**: 
-  - **Summary**: 3-5 sentence Chinese summary (+Tags)
-  - **Insight**: Personalized analysis connecting to your past links
-- **Web Dashboard**: 
-  - Timeline view with AI insights
-  - Tag filtering
-  - **Full Archive View**: Read distraction-free markdown content
+- **Instant View (Telegra.ph)**: Articles are archived to Telegra.ph, creating an instant reading experience directly within Telegram.
+- **Enhanced Web UI**: 
+  - **Performance**: Powered by **ISR (Incremental Static Regeneration)** for instant page loads.
+  - **Detail Page**: Distraction-free reading with Markdown support + "⚡️ Read on Telegra.ph" quick link.
+  - **Tag Filtering**: Filter your knowledge base by tags.
+  - **Localized**: All times displayed in **Beijing Time (CST)**.
+- **Deep AI Analysis**: 
+  - **Summary**: Concise Chinese summary capturing key points.
+  - **Insight**: Personalized insights connecting the article to your broader knowledge base.
 
 ### Notion Setup
 Ensure your database has these properties:
 - `Name` (Title)
 - `URL` (URL) - Original Link
-- `ArchiveURL` (URL) - **[NEW]** Telegra.ph Link
+- `ArchiveURL` (URL) - **[NEW]** Telegra.ph Link (Stores the Instant View URL)
 - `Summary` (Text)
 - `Insight` (Text) - **[NEW]**
 - `Tags` (Multi-select)
 - `Category` (Select)
+
+> **Note**: The web UI automatically filters out pages with "Untitled" titles or empty URLs.
 
 ### Environment Variables
 ...
