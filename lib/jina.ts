@@ -15,7 +15,17 @@ export async function fetchPageContent(url: string): Promise<string> {
             throw new Error(`Jina API error: ${response.statusText}`);
         }
 
-        return await response.text();
+        const text = await response.text();
+
+        try {
+            const json = JSON.parse(text);
+            if (json && json.data && json.data.content) {
+                return json.data.content;
+            }
+            return text; // Fallback if structure is different
+        } catch (e) {
+            return text; // Fallback if not JSON
+        }
     } catch (error) {
         console.error("Error fetching content from Jina:", error);
         return "";
