@@ -119,7 +119,7 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                     <div className="section">
                         <div className="section-title">标签</div>
                         <div className="tags">
-                            {link.tags.map(tag => (
+                            {link.tags.map((tag: string) => (
                                 <Link key={tag} href={`/?tag=${encodeURIComponent(tag)}`} className="tag">
                                     {tag}
                                 </Link>
