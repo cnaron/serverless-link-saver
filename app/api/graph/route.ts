@@ -6,7 +6,7 @@ const databaseId = process.env.NOTION_DATABASE_ID!;
 
 export async function GET() {
     try {
-        const response = await notion.databases.query({
+        const response = await (notion.databases as any).query({
             database_id: databaseId,
         });
 
