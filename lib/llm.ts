@@ -37,7 +37,7 @@ export async function summarizeContent(
     context: any[] = []
 ): Promise<LinkSummary> {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b", generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME, generationConfig: { responseMimeType: "application/json" } });
 
         // Truncate content if too long
         const truncatedContent = content.slice(0, 50000);
