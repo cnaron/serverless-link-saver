@@ -86,6 +86,29 @@ npx ts-node scripts/init-notion.ts <YOUR_PAGE_ID>
 *   **数据库**: Notion API
 *   **LLM**: Google Gemini (via `google-generative-ai`)
 *   **网页解析**: Jina Reader API
+### ✨ New Features (v2.0)
+- **Instant View (Telegra.ph)**: Articles are archived to Telegra.ph for instant reading on Telegram.
+- **Improved AI Analysis**: 
+  - **Summary**: 3-5 sentence Chinese summary (+Tags)
+  - **Insight**: Personalized analysis connecting to your past links
+- **Web Dashboard**: 
+  - Timeline view with AI insights
+  - Tag filtering
+  - **Full Archive View**: Read distraction-free markdown content
+
+### Notion Setup
+Ensure your database has these properties:
+- `Name` (Title)
+- `URL` (URL) - Original Link
+- `ArchiveURL` (URL) - **[NEW]** Telegra.ph Link
+- `Summary` (Text)
+- `Insight` (Text) - **[NEW]**
+- `Tags` (Multi-select)
+- `Category` (Select)
+
+### Environment Variables
+...
+- `TELEGRAPH_ACCESS_TOKEN` (Optional): To persist the "LinkSaver AI" author identity. If missing, a new account is created on each cold start.
 
 ---
 
