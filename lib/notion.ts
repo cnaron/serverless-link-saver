@@ -69,7 +69,8 @@ export async function getRecentLinks(limit: number = 20): Promise<StoredLink[]> 
             body: JSON.stringify({
                 page_size: limit,
                 sorts: [{ timestamp: 'created_time', direction: 'descending' }]
-            })
+            }),
+            cache: 'no-store'
         });
 
         if (!response.ok) {
@@ -120,7 +121,8 @@ export async function searchRelatedLinks(tags: string[], limit: number = 5): Pro
                 page_size: limit + 1, // Fetch one extra to exclude self
                 filter: { or: orFilters },
                 sorts: [{ timestamp: 'created_time', direction: 'descending' }]
-            })
+            }),
+            cache: 'no-store'
         });
 
         if (!response.ok) {
