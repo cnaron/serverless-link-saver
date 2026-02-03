@@ -20,6 +20,7 @@
     "react-force-graph-3d": "^1.29.0",
     "react-markdown": "^10.1.0",
     "telegraf": "^4.16.3",
+    "telegraph-node": "^1.0.4",
     "three": "^0.182.0"
   },
   "devDependencies": {
