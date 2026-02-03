@@ -1,24 +1,35 @@
 import { notFound } from "next/navigation";
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
-import { Client } from "@notionhq/client";
 import { getRecentLinks, searchRelatedLinks } from "@/lib/notion";
 import { getTelegraphPage } from "@/lib/telegraph";
 
-// FORCE DYNAMIC: This page must be rendered on request
-export const dynamic = 'force-dynamic';
+// Use Revalidation (ISR) instead of Force Dynamic for better performance
+export const revalidate = 60;
 
-// Helper to fetch single page (notion.ts helper doesn't exist for single id yet)
+// Helper to fetch single page using fetch API (for caching control)
 async function getLink(id: string) {
-    const notion = new Client({ auth: process.env.NOTION_KEY });
     const databaseId = process.env.NOTION_DATABASE_ID!;
+    const NOTION_KEY = process.env.NOTION_KEY!;
 
     try {
-        const response = await notion.pages.retrieve({ page_id: id });
-        const props = (response as any).properties;
+        const response = await fetch(`https://api.notion.com/v1/pages/${id}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${NOTION_KEY}`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28'
+            },
+            next: { revalidate: 60 }
+        });
+
+        if (!response.ok) return null;
+
+        const page = await response.json();
+        const props = (page as any).properties;
 
         return {
-            id: response.id,
+            id: page.id,
             title: props.Name?.title?.[0]?.plain_text || "Untitled",
             url: props.URL?.url || "#",
             archiveUrl: props.ArchiveURL?.url,
@@ -26,7 +37,7 @@ async function getLink(id: string) {
             insight: props.Insight?.rich_text?.[0]?.plain_text || "",
             category: props.Category?.select?.name || "Other",
             tags: props.Tags?.multi_select?.map((t: any) => t.name) || [],
-            created_time: (response as any).created_time,
+            created_time: (page as any).created_time,
         };
     } catch (error) {
         console.error("Error fetching page:", error);
@@ -92,10 +103,6 @@ export default async function LinkDetail({ params }: { params: { id: string } })
             const page = await getTelegraphPage(path);
             if (page && page.content) {
                 // Filter content to remove the header logic we injected
-                // We injected headerNodes ending with { tag: 'h4', children: ['📄 原文内容'] }
-                // So we look for that node and render everything AFTER it.
-                // If not found (old format), render everything.
-
                 const splitIndex = page.content.findIndex((n: any) =>
                     n.tag === 'h4' && n.children && n.children[0] === '📄 原文内容'
                 );
@@ -116,10 +123,8 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                 <h1>{link.title}</h1>
                 <div className="meta">
                     <a href={link.url} target="_blank">{link.url}</a>
-                    {' · '} {new Date(link.created_time).toLocaleString('zh-CN')}
+                    {' · '} {new Date(link.created_time).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
                 </div>
-
-                {/* Removed "Read on Telegra.ph" block */}
 
                 {link.summary && (
                     <div className="section">
