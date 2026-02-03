@@ -62,10 +62,22 @@ export async function POST(req: NextRequest) {
                     const protocol = host.includes("localhost") ? "http" : "https";
                     const appUrl = `${protocol}://${host}`;
 
+                    const escapeHtml = (str: string) => str
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;");
+
+                    const safeTitle = escapeHtml(summary.title);
+                    const safeCategory = escapeHtml(summary.category);
+                    const safeTags = summary.tags.map(t => `#${escapeHtml(t)}`).join(" ");
+                    // Simple bold conversion for AI output (Markdown to HTML)
+                    const safeSummary = escapeHtml(summary.summary)
+                        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
                     await bot.telegram.sendMessage(
                         chatId,
-                        `✅ *已保存!*\n\n*${summary.title}*\n_${summary.category}_  ${tagsString}\n\n${summary.summary}\n\n[🔗 Open in Notion](${notionUrl})  |  [🌌 Open Galaxy](${appUrl})`,
-                        { parse_mode: "Markdown" }
+                        `✅ <b>已保存!</b>\n\n<b>${safeTitle}</b>\n<i>${safeCategory}</i>  ${safeTags}\n\n${safeSummary}\n\n<a href="${notionUrl}">🔗 Open in Notion</a>  |  <a href="${appUrl}">🌌 Open Galaxy</a>`,
+                        { parse_mode: "HTML", link_preview_options: { is_disabled: true } }
                     );
 
                 } catch (err) {
