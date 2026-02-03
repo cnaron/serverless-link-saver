@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
                     if (!summary) throw new Error("Failed to summarize content");
 
                     // C. Notion
-                    await saveBookmark(summary, url);
+                    await saveBookmark(summary, url, content);
 
                     // Success Message
                     await bot.telegram.sendMessage(

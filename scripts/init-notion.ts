@@ -66,7 +66,7 @@ async function createDatabase() {
                     rich_text: {},
                 },
             },
-        });
+        } as any);
 
         console.log("✅ Database Created Successfully!");
         console.log("------------------------------------------------");
