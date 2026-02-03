@@ -212,3 +212,17 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
 
     return page.url;
 }
+
+/**
+ * Fetches a Telegra.ph page by path.
+ */
+export async function getTelegraphPage(path: string) {
+    // path is the part after https://telegra.ph/
+    try {
+        const page = await ph.getPage(path, { return_content: true });
+        return page;
+    } catch (error) {
+        console.error("Error fetching Telegra.ph page:", error);
+        return null;
+    }
+}
