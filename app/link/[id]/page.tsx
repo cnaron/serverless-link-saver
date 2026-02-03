@@ -2,9 +2,8 @@ import { notFound } from "next/navigation";
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { getRecentLinks, searchRelatedLinks } from "@/lib/notion";
-import { getTelegraphPage } from "@/lib/telegraph";
 
-// Use Revalidation (ISR) instead of Force Dynamic for better performance
+// Use Revalidation (ISR) for performance
 export const revalidate = 60;
 
 // Helper to fetch single page using fetch API (for caching control)
@@ -45,46 +44,6 @@ async function getLink(id: string) {
     }
 }
 
-// Simple Renderer for Telegra.ph Nodes
-function TelegraphRenderer({ nodes }: { nodes: any[] }) {
-    if (!nodes || !Array.isArray(nodes)) return null;
-
-    return (
-        <div className="telegraph-content">
-            {nodes.map((node, i) => <TelegraphNode key={i} node={node} />)}
-        </div>
-    );
-}
-
-function TelegraphNode({ node }: { node: any }) {
-    if (typeof node === 'string') {
-        return <>{node}</>;
-    }
-
-    const { tag, attrs, children } = node;
-    const childNodes = children ? children.map((child: any, i: number) => <TelegraphNode key={i} node={child} />) : null;
-
-    switch (tag) {
-        case 'p': return <p {...attrs}>{childNodes}</p>;
-        case 'b': case 'strong': return <strong {...attrs}>{childNodes}</strong>;
-        case 'i': case 'em': return <em {...attrs}>{childNodes}</em>;
-        case 'a': return <a {...attrs} target="_blank">{childNodes}</a>;
-        case 'h3': return <h3 {...attrs}>{childNodes}</h3>;
-        case 'h4': return <h4 {...attrs}>{childNodes}</h4>;
-        case 'blockquote': return <blockquote {...attrs}>{childNodes}</blockquote>;
-        case 'ul': return <ul {...attrs}>{childNodes}</ul>;
-        case 'ol': return <ol {...attrs}>{childNodes}</ol>;
-        case 'li': return <li {...attrs}>{childNodes}</li>;
-        case 'img': return <img {...attrs} style={{ maxWidth: '100%', borderRadius: '4px' }} />;
-        case 'hr': return <hr {...attrs} />;
-        case 'br': return <br />;
-        case 'pre': return <pre {...attrs}>{childNodes}</pre>;
-        case 'code': return <code {...attrs}>{childNodes}</code>;
-        case 's': return <s {...attrs}>{childNodes}</s>;
-        default: return <div {...attrs}>{childNodes}</div>;
-    }
-}
-
 export default async function LinkDetail({ params }: { params: { id: string } }) {
     const link = await getLink(params.id);
 
@@ -95,27 +54,6 @@ export default async function LinkDetail({ params }: { params: { id: string } })
     // Get related links based on tags
     const relatedLinks = await searchRelatedLinks(link.tags, 5);
 
-    // Fetch Telegra.ph content if available
-    let telegraphContentNodes: any[] = [];
-    if (link.archiveUrl && link.archiveUrl.includes('telegra.ph')) {
-        const path = link.archiveUrl.split('telegra.ph/')[1];
-        if (path) {
-            const page = await getTelegraphPage(path);
-            if (page && page.content) {
-                // Filter content to remove the header logic we injected
-                const splitIndex = page.content.findIndex((n: any) =>
-                    n.tag === 'h4' && n.children && n.children[0] === '📄 原文内容'
-                );
-
-                if (splitIndex !== -1) {
-                    telegraphContentNodes = page.content.slice(splitIndex + 1);
-                } else {
-                    telegraphContentNodes = page.content;
-                }
-            }
-        }
-    }
-
     return (
         <div className="detail-layout">
             {/* Main Column */}
@@ -125,6 +63,33 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                     <a href={link.url} target="_blank">{link.url}</a>
                     {' · '} {new Date(link.created_time).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
                 </div>
+
+                {/* Instant View Button - Restored & Styled */}
+                {link.archiveUrl && (
+                    <div style={{ margin: '20px 0' }}>
+                        <a
+                            href={link.archiveUrl}
+                            target="_blank"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 16px',
+                                background: 'var(--card-bg)', // Use consistent card background
+                                border: '1px solid var(--border)',
+                                borderRadius: '20px',
+                                textDecoration: 'none',
+                                color: 'var(--fg)',
+                                fontSize: '0.9rem',
+                                fontWeight: 500,
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            ⚡️ Read on Telegra.ph (Instant View)
+                        </a>
+                    </div>
+                )}
 
                 {link.summary && (
                     <div className="section">
@@ -137,28 +102,6 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                     <div className="section">
                         <div className="section-title">Insight</div>
                         <div className="insight">{link.insight}</div>
-                    </div>
-                )}
-
-                {/* Render Telegra.ph Content Inline */}
-                {telegraphContentNodes.length > 0 && (
-                    <div className="section">
-                        <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>原文内容</span>
-                            <a href={link.archiveUrl} target="_blank" style={{ fontSize: '0.85rem', fontWeight: 'normal', textDecoration: 'none', opacity: 0.8 }}>
-                                ⚡️ Instant View
-                            </a>
-                        </div>
-                        <div className="content">
-                            <TelegraphRenderer nodes={telegraphContentNodes} />
-                        </div>
-                    </div>
-                )}
-
-                {/* Fallback link if no content fetched but url exists? Option. */}
-                {link.archiveUrl && telegraphContentNodes.length === 0 && (
-                    <div style={{ marginTop: '20px', fontSize: '0.9rem' }}>
-                        <a href={link.archiveUrl} target="_blank">🔗 Read on Telegra.ph</a>
                     </div>
                 )}
 
