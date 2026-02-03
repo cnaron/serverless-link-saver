@@ -105,6 +105,19 @@ function processToken(token: any): any {
         };
     }
 
+    // 4. HTML parsing basic support
+    if (token.type === 'html') {
+        // Allow basic tags if possible, or just return text content
+        // For simple bold/italic in HTML
+        if (token.text.match(/<b>|<strong>/)) {
+            return { tag: 'b', children: [token.text.replace(/<[^>]*>/g, '')] };
+        }
+        if (token.text.match(/<i>|<em>/)) {
+            return { tag: 'i', children: [token.text.replace(/<[^>]*>/g, '')] };
+        }
+        return token.text.replace(/<[^>]*>/g, ''); // Strip tags for safety/compatibility
+    }
+
     // Fallback for unknown elements -> string representation only
     // Ideally we shouldn't hit this often if we cover standard tokens
     if (token.text) return token.text;
@@ -130,10 +143,18 @@ function markdownToNodes(markdown: string): any[] {
     return nodes;
 }
 
+interface TelegraphPageOptions {
+    title: string;
+    content: string; // Markdown
+    url: string;
+    summary?: string;
+    insight?: string;
+}
+
 /**
- * Uploads content to Telegra.ph
+ * Uploads content to Telegra.ph with rich header and metadata.
  */
-export async function createTelegraphPage(title: string, markdown: string) {
+export async function createTelegraphPage(opts: TelegraphPageOptions) {
     let token = ACCESS_TOKEN;
 
     if (!token) {
@@ -143,10 +164,49 @@ export async function createTelegraphPage(title: string, markdown: string) {
         token = await createAccount("LinkSaver", "AI Link Saver");
     }
 
-    const content = markdownToNodes(markdown);
+    const contentNodes = markdownToNodes(opts.content);
 
-    const page = await ph.createPage(token!, title, content, {
+    // Construct Header Nodes
+    // 1. Original Link
+    // 2. Beijing Time
+    // 3. Summary (Quote block)
+    // 4. Insight (Quote block with indicator)
+    // 5. Divider
+    const headerNodes: any[] = [];
+
+    // Beijing Time
+    const beijingTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+
+    headerNodes.push({
+        tag: 'p',
+        children: [
+            { tag: 'a', attrs: { href: opts.url }, children: [`🔗 原文链接`] },
+            `  |  📅 ${beijingTime}`
+        ]
+    });
+
+    if (opts.summary) {
+        headerNodes.push({ tag: 'h4', children: ['📝 AI 摘要'] });
+        headerNodes.push({ tag: 'blockquote', children: [opts.summary] });
+    }
+
+    if (opts.insight) {
+        headerNodes.push({ tag: 'h4', children: ['💡 深度洞见'] });
+        headerNodes.push({
+            tag: 'blockquote',
+            children: [{ tag: 'b', children: ['Insight: '] }, opts.insight]
+        });
+    }
+
+    headerNodes.push({ tag: 'hr' });
+    headerNodes.push({ tag: 'h4', children: ['📄 原文内容'] });
+    headerNodes.push({ tag: 'br' });
+
+    const finalNodes = [...headerNodes, ...contentNodes];
+
+    const page = await ph.createPage(token!, opts.title, finalNodes, {
         author_name: "LinkSaver AI",
+        author_url: opts.url, // Link author name to original URL
         return_content: true
     });
 
