@@ -61,7 +61,13 @@ export async function POST(req: NextRequest) {
                     // ─── Stage 5: Upload to Telegra.ph ───
                     let telegraphUrl = "";
                     try {
-                        telegraphUrl = await createTelegraphPage(title, content);
+                        telegraphUrl = await createTelegraphPage({
+                            title,
+                            content,
+                            url,
+                            summary: summaryResult.summary,
+                            insight
+                        });
                     } catch (e) {
                         console.error("Telegra.ph upload failed:", e);
                         // Continue without telegraphUrl if fails
