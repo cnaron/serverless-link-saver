@@ -46,12 +46,24 @@ export async function saveBookmark(data: BookmarkData, url: string, archiveUrl?:
                 Summary: { rich_text: [{ text: { content: data.summary.slice(0, 2000) } }] },
                 Insight: { rich_text: [{ text: { content: data.insight.slice(0, 2000) } }] },
             },
-            // No children blocks anymore (content is in Telegra.ph)
         });
-        return (response as any).url;
+        return response.id; // Return ID instead of URL for two-step process
     } catch (error) {
         console.error("Error saving to Notion:", error);
         throw error;
+    }
+}
+
+export async function updateBookmarkArchiveUrl(pageId: string, archiveUrl: string) {
+    try {
+        await notion.pages.update({
+            page_id: pageId,
+            properties: {
+                ArchiveURL: { url: archiveUrl }
+            }
+        });
+    } catch (error) {
+        console.error("Error updating Notion page:", error);
     }
 }
 

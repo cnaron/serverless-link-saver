@@ -146,7 +146,8 @@ function markdownToNodes(markdown: string): any[] {
 interface TelegraphPageOptions {
     title: string;
     content: string; // Markdown
-    url: string;
+    url: string; // Original Source URL
+    authorUrl?: string; // URL for the Author link (e.g. our App Detail Page)
     summary?: string;
     insight?: string;
 }
@@ -205,8 +206,8 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
     const finalNodes = [...headerNodes, ...contentNodes];
 
     const page = await ph.createPage(token!, opts.title, finalNodes, {
-        author_name: opts.url.length > 128 ? opts.url.substring(0, 125) + "..." : opts.url,
-        author_url: opts.url,
+        author_name: "LinkSaver AI",
+        author_url: opts.authorUrl || opts.url,
         return_content: true
     });
 

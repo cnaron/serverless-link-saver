@@ -58,22 +58,7 @@ export async function POST(req: NextRequest) {
                         relatedLinks
                     });
 
-                    // ─── Stage 5: Upload to Telegra.ph ───
-                    let telegraphUrl = "";
-                    try {
-                        telegraphUrl = await createTelegraphPage({
-                            title,
-                            content,
-                            url,
-                            summary: summaryResult.summary,
-                            insight
-                        });
-                    } catch (e) {
-                        console.error("Telegra.ph upload failed:", e);
-                        // Continue without telegraphUrl if fails
-                    }
-
-                    // ─── Stage 6: Infer Category & Save to Notion ───
+                    // ─── Stage 6: Infer Category & Save to Notion (Initial) ───
                     const category = inferCategory(summaryResult.tags);
                     const bookmarkData: BookmarkData = {
                         title,
@@ -83,7 +68,36 @@ export async function POST(req: NextRequest) {
                         category
                     };
 
-                    const notionUrl = await saveBookmark(bookmarkData, url, telegraphUrl); // Pass archiveUrl
+                    // Save first to get the Notion Page ID
+                    // We need this ID to generate the App URL for the Telegra.ph author link
+                    const notionPageId = await saveBookmark(bookmarkData, url, undefined);
+
+                    const host = req.headers.get("host") || "serverless-link-saver.vercel.app";
+                    const protocol = host.includes("localhost") ? "http" : "https";
+                    const appUrl = `${protocol}://${host}`;
+                    const appDetailUrl = `${appUrl}/link/${notionPageId}`;
+
+                    // ─── Stage 5: Upload to Telegra.ph ───
+                    let telegraphUrl = "";
+                    try {
+                        telegraphUrl = await createTelegraphPage({
+                            title,
+                            content,
+                            url, // Source URL
+                            authorUrl: appDetailUrl, // Author Link -> Our App Detail Page
+                            summary: summaryResult.summary,
+                            insight
+                        });
+
+                        // Update Notion with the Archive URL
+                        if (telegraphUrl) {
+                            const { updateBookmarkArchiveUrl } = require("@/lib/notion");
+                            await updateBookmarkArchiveUrl(notionPageId, telegraphUrl);
+                        }
+                    } catch (e) {
+                        console.error("Telegra.ph upload failed:", e);
+                        // Continue without telegraphUrl if fails
+                    }
 
                     // ─── Stage 7: Send Telegram Response ───
                     const escapeHtml = (str: string) => str
@@ -96,12 +110,8 @@ export async function POST(req: NextRequest) {
                     const safeInsight = escapeHtml(insight);
                     const safeTags = summaryResult.tags.map(t => `#${escapeHtml(t)}`).join(" ");
 
-                    // Estimate reading time (approx 500 chars per minute for Chinese/mixed content)
+                    // Estimate reading time
                     const readingTime = Math.ceil(content.length / 500);
-
-                    const host = req.headers.get("host") || "serverless-link-saver.vercel.app";
-                    const protocol = host.includes("localhost") ? "http" : "https";
-                    const appUrl = `${protocol}://${host}`;
 
                     // Message Format:
                     // [Title Link to Telegra.ph (Instant View)]
@@ -113,6 +123,11 @@ export async function POST(req: NextRequest) {
                     // [Insight]
                     //
                     // [Footer Links]
+
+                    // Note: notionUrl is not available directly in URL format from ID easily without query
+                    // But we can construct a notion protocol link or just use our app link
+                    // Actually, the previous 'saveBookmark' returned URL. 
+                    // Let's use our App Detail URL as the primary "Knowledge Base" link.
 
                     const message = [
                         `<a href="${telegraphUrl}"><b>${safeTitle}</b></a>`,
@@ -127,7 +142,7 @@ export async function POST(req: NextRequest) {
                         ``,
                         `<i>${category}</i>  ${safeTags}`,
                         ``,
-                        `<a href="${notionUrl}">🔗 Notion</a>  |  <a href="${appUrl}">🌌 知识库</a>`
+                        `<a href="${appDetailUrl}">🔗 查看详情 (App)</a>`
                     ].join('\n');
 
                     await bot.telegram.sendMessage(chatId, message, {
