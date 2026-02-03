@@ -2,7 +2,7 @@
 
 一个云原生、无服务器 (Serverless) 的个人知识收藏夹。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcnaron%2Fserverless-link-saver&env=TELEGRAM_BOT_TOKEN,NOTION_KEY,NOTION_DATABASE_ID,GEMINI_API_KEY)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcnaron%2Fserverless-link-saver&env=TELEGRAM_BOT_TOKEN,NOTION_KEY,NOTION_DATABASE_ID,GEMINI_API_KEY,GEMINI_MODEL_NAME)
 
 > **致敬与灵感**: 本项目深受 **[LinkMind](https://github.com/reorx/linkmind)** (by [reorx](https://github.com/reorx)) 的启发。我们的目标是构建一个 **100% Serverless** 的架构，复刻其核心的"稍后读"与 AI 分析体验，同时实现零成本维护。
 
@@ -69,6 +69,7 @@ npx ts-node scripts/init-notion.ts <YOUR_PAGE_ID>
     *   `NOTION_KEY`
     *   `NOTION_DATABASE_ID` (即第一步脚本输出的 ID)
     *   `GEMINI_API_KEY`
+    *   `GEMINI_MODEL_NAME` (可选，默认为 `gemini-1.5-flash`，建议填 `gemini-1.5-flash-8b` 或 `gemini-2.0-flash-lite-preview`)
 4.  点击 Deploy!
 
 ### 3. 设置 Webhook
