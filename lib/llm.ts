@@ -35,7 +35,7 @@ export async function summarizeContent(
     content: string,
     originalUrl: string,
     context: any[] = []
-): Promise<LinkSummary | null> {
+): Promise<LinkSummary> {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", generationConfig: { responseMimeType: "application/json" } });
 
@@ -69,6 +69,6 @@ export async function summarizeContent(
         return JSON.parse(text) as LinkSummary;
     } catch (error) {
         console.error("Error summarizing content with Gemini:", error);
-        return null;
+        throw error;
     }
 }

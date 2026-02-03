@@ -37,17 +37,21 @@ export async function POST(req: NextRequest) {
                 try {
                     // A. Jina Reader
                     const content = await fetchPageContent(url);
-                    if (!content) throw new Error("Failed to fetch content");
+                    if (!content) throw new Error("Failed to fetch content from Jina Reader");
 
                     // B. Contextual Memory (Keyword RAG)
-                    const keywords = await extractKeywords(content);
-                    console.log("Extracted Keywords:", keywords);
-                    const similarBookmarks = await searchSimilarBookmarks(keywords);
-                    console.log(`Found ${similarBookmarks.length} similar bookmarks`);
+                    let similarBookmarks: any[] = [];
+                    try {
+                        const keywords = await extractKeywords(content);
+                        similarBookmarks = await searchSimilarBookmarks(keywords);
+                    } catch (e) {
+                        console.error("Context retrieval failed (non-fatal):", e);
+                        // Continue without context
+                    }
 
                     // C. Gemini LLM (with Context)
+                    // This will throw if it fails
                     const summary = await summarizeContent(content, url, similarBookmarks);
-                    if (!summary) throw new Error("Failed to summarize content");
 
                     // C. Notion
                     await saveBookmark(summary, url, content);
@@ -61,7 +65,11 @@ export async function POST(req: NextRequest) {
 
                 } catch (err) {
                     console.error(err);
-                    await bot.telegram.sendMessage(chatId, `❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    await bot.telegram.sendMessage(
+                        chatId,
+                        `❌ Error: ${errorMessage}\n\nRunning on Vercel Region: ${process.env.VERCEL_REGION || "Unknown"}`
+                    );
                 }
             } else {
                 // No URL found
