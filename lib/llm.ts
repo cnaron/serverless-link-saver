@@ -9,9 +9,11 @@ export interface LinkSummary {
     category: "Tech" | "News" | "Design" | "Tutorial" | "Other";
 }
 
+const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-1.5-flash";
+
 export async function extractKeywords(content: string): Promise<string[]> {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b", generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME, generationConfig: { responseMimeType: "application/json" } });
         const prompt = `
       Analyze the following text and extract 3 most significant unique search keywords or phrases (max 2 words each) that would help find related articles in a personal knowledge base.
       Focus on specific topics, technologies, or concepts.
