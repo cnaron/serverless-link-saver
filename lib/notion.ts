@@ -11,7 +11,6 @@ export async function saveBookmark(data: LinkSummary, url: string, content?: str
         // Add content blocks if provided
         if (content) {
             // Split content into chunks of 2000 characters (Notion limit)
-            // A simple approach: split by newlines first to try and keep paragraphs intact.
             const chunks = content.match(/.{1,2000}/g) || [];
 
             blocks.push({
@@ -58,5 +57,32 @@ export async function saveBookmark(data: LinkSummary, url: string, content?: str
     } catch (error) {
         console.error("Error saving to Notion:", error);
         throw error;
+    }
+}
+
+export async function getRecentBookmarks(limit: number = 20) {
+    try {
+        const response = await (notion.databases as any).query({
+            database_id: databaseId,
+            page_size: limit,
+            sorts: [
+                {
+                    property: 'Last edited time',
+                    direction: 'descending',
+                },
+            ],
+        });
+
+        return response.results.map((page: any) => {
+            return {
+                title: page.properties.Name.title[0]?.text.content || "Untitled",
+                summary: page.properties.Summary.rich_text[0]?.text.content || "",
+                category: page.properties.Category.select?.name || "",
+                tags: page.properties.Tags.multi_select?.map((t: any) => t.name).join(", ") || "",
+            };
+        });
+    } catch (error) {
+        console.error("Error fetching recent bookmarks:", error);
+        return [];
     }
 }
