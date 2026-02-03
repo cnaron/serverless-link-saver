@@ -22,27 +22,39 @@ export default function KnowledgeGraph() {
       .catch((err) => console.error(err));
   }, []);
 
-  if (loading) return <div className="flex h-screen items-center justify-center text-white">Loading your Universe...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center text-white font-mono animate-pulse">Initializing Knowledge Galaxy...</div>;
 
   return (
-    <div className="h-screen w-full bg-black">
+    <div className="h-screen w-full bg-[#000011] overflow-hidden relative">
       <ForceGraph3D
         graphData={data}
         nodeLabel="name"
         nodeAutoColorBy="group"
-        linkDirectionalParticles={2}
-        linkDirectionalParticleSpeed={0.005}
-        linkOpacity={0.5}
-        backgroundColor="#000000"
+        linkDirectionalParticles={4}
+        linkDirectionalParticleSpeed={0.01}
+        linkOpacity={0.3}
+        backgroundColor="#000011"
         onNodeClick={(node: any) => {
           if (node.url) {
             window.open(node.url, '_blank');
           }
         }}
+        nodeRelSize={6}
       />
-      <div className="absolute top-5 left-5 text-white z-10 p-4 bg-black/50 rounded-lg">
-        <h1 className="text-2xl font-bold">🌌 Knowledge Galaxy</h1>
-        <p className="text-sm opacity-80">Drag to rotate • Scroll to zoom</p>
+
+      {/* Overlay UI */}
+      <div className="absolute top-6 left-6 z-10 pointer-events-none">
+        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600 drop-shadow-lg">
+          Knowledge Galaxy
+        </h1>
+        <div className="mt-2 flex gap-4 text-sm text-gray-400 font-mono">
+          <span>🌌 Nodes: {data.nodes.length}</span>
+          <span>🔗 Links: {data.links.length}</span>
+        </div>
+      </div>
+
+      <div className="absolute bottom-6 right-6 z-10 text-xs text-gray-600 font-mono pointer-events-none">
+        Drag to Rotate • Scroll to Zoom • Click to Open
       </div>
     </div>
   );
