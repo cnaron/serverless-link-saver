@@ -58,9 +58,13 @@ export async function POST(req: NextRequest) {
 
                     // Success Message
                     const tagsString = summary.tags.map(t => `#${t}`).join(" ");
+                    const host = req.headers.get("host") || "serverless-link-saver.vercel.app";
+                    const protocol = host.includes("localhost") ? "http" : "https";
+                    const appUrl = `${protocol}://${host}`;
+
                     await bot.telegram.sendMessage(
                         chatId,
-                        `✅ *已保存!*\n\n*${summary.title}*\n_${summary.category}_  ${tagsString}\n\n${summary.summary}\n\n[🔗 Open in Notion](${notionUrl})`,
+                        `✅ *已保存!*\n\n*${summary.title}*\n_${summary.category}_  ${tagsString}\n\n${summary.summary}\n\n[🔗 Open in Notion](${notionUrl})  |  [🌌 Open Galaxy](${appUrl})`,
                         { parse_mode: "Markdown" }
                     );
 
