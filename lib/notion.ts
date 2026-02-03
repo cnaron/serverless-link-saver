@@ -60,17 +60,29 @@ export async function saveBookmark(data: LinkSummary, url: string, content?: str
     }
 }
 
-export async function getRecentBookmarks(limit: number = 20) {
+export async function searchSimilarBookmarks(keywords: string[]) {
+    if (keywords.length === 0) return [];
+
     try {
+        // Construct OR filter for Title and Tags
+        const orFilter: any[] = [];
+        keywords.forEach(kw => {
+            orFilter.push({
+                property: "Name",
+                title: { contains: kw }
+            });
+            orFilter.push({
+                property: "Tags",
+                multi_select: { contains: kw }
+            });
+        });
+
         const response = await (notion.databases as any).query({
             database_id: databaseId,
-            page_size: limit,
-            sorts: [
-                {
-                    property: 'Last edited time',
-                    direction: 'descending',
-                },
-            ],
+            page_size: 10,
+            filter: {
+                or: orFilter
+            }
         });
 
         return response.results.map((page: any) => {
@@ -82,7 +94,7 @@ export async function getRecentBookmarks(limit: number = 20) {
             };
         });
     } catch (error) {
-        console.error("Error fetching recent bookmarks:", error);
+        console.error("Error searching similar bookmarks:", error);
         return [];
     }
 }

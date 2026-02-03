@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Telegraf } from "telegraf";
 import { fetchPageContent } from "@/lib/jina";
-import { summarizeContent } from "@/lib/llm";
-import { saveBookmark, getRecentBookmarks } from "@/lib/notion";
+import { summarizeContent, extractKeywords } from "@/lib/llm";
+import { saveBookmark, searchSimilarBookmarks } from "@/lib/notion";
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
 
@@ -39,11 +39,14 @@ export async function POST(req: NextRequest) {
                     const content = await fetchPageContent(url);
                     if (!content) throw new Error("Failed to fetch content");
 
-                    // B. Contextual Memory (Fetch recent bookmarks)
-                    const recentBookmarks = await getRecentBookmarks(10);
+                    // B. Contextual Memory (Keyword RAG)
+                    const keywords = await extractKeywords(content);
+                    console.log("Extracted Keywords:", keywords);
+                    const similarBookmarks = await searchSimilarBookmarks(keywords);
+                    console.log(`Found ${similarBookmarks.length} similar bookmarks`);
 
                     // C. Gemini LLM (with Context)
-                    const summary = await summarizeContent(content, url, recentBookmarks);
+                    const summary = await summarizeContent(content, url, similarBookmarks);
                     if (!summary) throw new Error("Failed to summarize content");
 
                     // C. Notion
