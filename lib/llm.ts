@@ -11,7 +11,7 @@ export interface LinkSummary {
 
 export async function extractKeywords(content: string): Promise<string[]> {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001", generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `
       Analyze the following text and extract 3 most significant unique search keywords or phrases (max 2 words each) that would help find related articles in a personal knowledge base.
       Focus on specific topics, technologies, or concepts.
@@ -37,7 +37,7 @@ export async function summarizeContent(
     context: any[] = []
 ): Promise<LinkSummary> {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001", generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b", generationConfig: { responseMimeType: "application/json" } });
 
         // Truncate content if too long
         const truncatedContent = content.slice(0, 50000);
