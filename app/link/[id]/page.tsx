@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { getRecentLinks, searchRelatedLinks } from "@/lib/notion";
 
@@ -27,6 +26,10 @@ async function getLink(id: string) {
         const page = await response.json();
         const props = (page as any).properties;
 
+        // Try to find an OG Image if stored (Notion doesn't store OG image in properties by default unless we save it)
+        // LinkMind stores 'images' json. We don't have that yet.
+        // We can fall back to 'cover' pattern if available, or just empty.
+
         return {
             id: page.id,
             title: props.Name?.title?.[0]?.plain_text || "Untitled",
@@ -37,6 +40,9 @@ async function getLink(id: string) {
             category: props.Category?.select?.name || "Other",
             tags: props.Tags?.multi_select?.map((t: any) => t.name) || [],
             created_time: (page as any).created_time,
+            // Assuming we might have OG Image or similar later. LinkMind uses 'og_image' column in SQL.
+            // In Notion, we can use the page cover? Or maybe we can't get it easily.
+            // For now, we omit the OG Image in sidebar unless we decide to store it.
         };
     } catch (error) {
         console.error("Error fetching page:", error);
@@ -61,12 +67,13 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                 <h1>{link.title}</h1>
                 <div className="meta">
                     <a href={link.url} target="_blank">{link.url}</a>
+                    {/* LinkMind shows Site Name here too, we don't have it stored yet */}
                     {' · '} {new Date(link.created_time).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
                 </div>
 
-                {/* Instant View Button - Restored & Styled */}
+                {/* Instant View Button - Restored & Styled - Kept as a nice extra feature even if LinkMind source doesn't have it exactly here, it fits the Vercel theme */}
                 {link.archiveUrl && (
-                    <div style={{ margin: '20px 0' }}>
+                    <div style={{ margin: '0 0 20px 0' }}>
                         <a
                             href={link.archiveUrl}
                             target="_blank"
@@ -74,16 +81,13 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                padding: '8px 16px',
-                                background: 'var(--card-bg)', // Use consistent card background
-                                border: '1px solid var(--border)',
+                                padding: '6px 14px',
+                                background: 'var(--badge-scraped-bg)',
+                                color: 'var(--badge-scraped-text)',
                                 borderRadius: '20px',
                                 textDecoration: 'none',
-                                color: 'var(--fg)',
-                                fontSize: '0.9rem',
+                                fontSize: '0.85rem',
                                 fontWeight: 500,
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                transition: 'all 0.2s ease'
                             }}
                         >
                             ⚡️ Read on Telegra.ph (Instant View)
@@ -105,10 +109,19 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                     </div>
                 )}
 
+                {/* Original content section if we had it stored as Markdown. LinkMind stores it. 
+                    We upload to Telegra.ph instead. 
+                    So we skip the "原文内容" section for now to avoid duplications or heavy fetching.
+                    Or we could fetch from Telegra.ph content? No, that's slow.
+                */}
+
             </div>
 
             {/* Sidebar Column */}
             <div className="detail-sidebar">
+
+                {/* OG Image placeholder if we had one */}
+                {/* <img class="og-image" src="..." alt=""> */}
 
                 {/* Tags */}
                 {link.tags.length > 0 && (
@@ -132,23 +145,24 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                             <div key={i} className="related-item">
                                 🔗
                                 {related.id ? (
-                                    <Link href={`/link/${related.id}`} className="related-title">
+                                    <Link href={`/link/${related.id}`}>
                                         {related.title || related.url}
                                     </Link>
                                 ) : (
-                                    <a href={related.url || '#'} target="_blank" className="related-title">{related.title || related.url}</a>
+                                    <a href={related.url || '#'} target="_blank">{related.title || related.url}</a>
                                 )}
 
                                 {related.url && (
-                                    <a href={related.url} target="_blank" style={{ marginLeft: '8px', opacity: 0.5, textDecoration: 'none' }} title="Original Source">
+                                    <a href={related.url} target="_blank" style={{ marginLeft: '6px', opacity: 0.5, textDecoration: 'none', fontSize: '0.8em' }} title="Original Source">
                                         ↗
                                     </a>
                                 )}
 
-                                <br />
-                                <span className="related-snippet">
-                                    {related.summary?.slice(0, 60)}...
-                                </span>
+                                {related.summary && (
+                                    <span className="related-snippet">
+                                        {related.summary.slice(0, 100)}...
+                                    </span>
+                                )}
                             </div>
                         ))}
                     </div>

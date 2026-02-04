@@ -54,7 +54,10 @@ export async function generateSummary(input: {
 正文:
 ${content}`;
 
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 2048 }
+        });
         const text = result.response.text();
         const cleanText = text.replace(/```json\n?|\n?```/g, "").trim();
 
@@ -103,12 +106,18 @@ export async function generateInsight(input: {
 文章: ${input.title || input.url}
 摘要: ${input.summary}
 
+用户相关的笔记:
+（无相关笔记）
+
 用户之前收藏过的相关链接:
 ${linksContext}
 
 请给出你的 insight：`;
 
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 1024 }
+        });
         const text = result.response.text();
         return text || '无法生成 insight';
     } catch (error) {

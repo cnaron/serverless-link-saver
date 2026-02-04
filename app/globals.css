@@ -50,14 +50,24 @@ body {
   line-height: 1.7;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
 
 /* Layout */
 .site-header {
   border-bottom: 1px solid var(--border);
   padding: 16px 20px;
-  background: var(--bg); /* Ensure header has bg in sticky contexts */
+  background: var(--surface);
+  /* LinkMind uses surface here usually or bg */
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .site-header a {
@@ -74,7 +84,9 @@ a:hover { text-decoration: underline; }
 }
 
 /* Home Page Timeline */
-.timeline { position: relative; }
+.timeline {
+  position: relative;
+}
 
 .day-label {
   font-size: 0.85rem;
@@ -86,7 +98,10 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--border);
   margin-bottom: 12px;
 }
-.day-label:first-child { padding-top: 0; }
+
+.day-label:first-child {
+  padding-top: 0;
+}
 
 .link-card {
   background: var(--surface);
@@ -94,7 +109,6 @@ a:hover { text-decoration: underline; }
   border-radius: 8px;
   padding: 16px 20px;
   margin-bottom: 12px;
-  /* cursor: pointer; Removing forced pointer unless whole card is clickable via JS, better to let links handle it */
 }
 
 .link-card:hover {
@@ -112,6 +126,7 @@ a:hover { text-decoration: underline; }
   color: var(--text);
   text-decoration: none;
 }
+
 .link-card h3 a:hover {
   color: var(--accent);
 }
@@ -126,31 +141,9 @@ a:hover { text-decoration: underline; }
 .link-card .card-meta a {
   color: var(--dim);
 }
+
 .link-card .card-meta a:hover {
   color: var(--accent);
-}
-
-.link-card details {
-  font-size: 0.9rem;
-  color: var(--text);
-  line-height: 1.6;
-}
-
-.link-card details summary {
-  cursor: pointer;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  list-style: none;
-}
-.link-card details summary::-webkit-details-marker { display: none; }
-
-.link-card details[open] summary {
-  display: block;
-  -webkit-line-clamp: unset;
-  overflow: visible;
-  margin-bottom: 10px;
 }
 
 /* Detail Page Layout */
@@ -159,10 +152,12 @@ a:hover { text-decoration: underline; }
   gap: 24px;
   align-items: flex-start;
 }
+
 .detail-main {
   flex: 1;
   min-width: 0;
 }
+
 .detail-sidebar {
   width: 280px;
   flex-shrink: 0;
@@ -172,6 +167,7 @@ a:hover { text-decoration: underline; }
   .detail-layout {
     flex-direction: column;
   }
+
   .detail-sidebar {
     width: 100%;
   }
@@ -190,7 +186,10 @@ a:hover { text-decoration: underline; }
   margin-bottom: 24px;
   word-break: break-all;
 }
-.meta a { color: var(--accent); }
+
+.meta a {
+  color: var(--accent);
+}
 
 .section {
   background: var(--surface);
@@ -218,7 +217,7 @@ a:hover { text-decoration: underline; }
   font-size: 0.95rem;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: none; /* Removed limit for full reading */
+  max-height: none;
   overflow-y: visible;
 }
 
@@ -234,6 +233,7 @@ a:hover { text-decoration: underline; }
   gap: 6px;
   flex-wrap: wrap;
 }
+
 .tag {
   background: var(--border);
   color: var(--dim);
@@ -249,8 +249,14 @@ a:hover { text-decoration: underline; }
   overflow-wrap: break-word;
   word-break: break-all;
 }
-.related-item:last-child { border-bottom: none; }
-.related-item a { color: var(--accent); }
+
+.related-item:last-child {
+  border-bottom: none;
+}
+
+.related-item a {
+  color: var(--accent);
+}
 
 .related-snippet {
   color: var(--dim);
@@ -268,4 +274,3 @@ a:hover { text-decoration: underline; }
   margin-left: 8px;
   vertical-align: middle;
 }
-/* Just mimicking the look, logic handled in component */
