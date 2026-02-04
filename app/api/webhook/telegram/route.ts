@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
                     // Extract title from markdown (first line usually is the title)
                     const titleMatch = content.match(/^#?\s*(.+)/);
-                    const title = titleMatch ? titleMatch[1].trim() : url;
+                    let title = titleMatch ? titleMatch[1].trim() : url;
 
                     // ─── Stage 2: Generate Summary + Tags ───
                     const summaryResult = await generateSummary({
@@ -58,10 +58,25 @@ export async function POST(req: NextRequest) {
                         relatedLinks
                     });
 
+                    // ─── Stage 5: Title & Metadata Refinement ───
+                    // Align title logic with LinkMind (especially for Twitter)
+                    let finalTitle = title;
+                    const isTwitter = url.includes("twitter.com") || url.includes("x.com");
+                    if (isTwitter) {
+                        // Try to extract author and first line from content if title is generic
+                        if (title.trim() === "X" || title.includes("on X")) {
+                            const lines = content.split('\n').filter(l => l.trim().length > 0);
+                            if (lines.length > 0) {
+                                const firstLine = lines[0].slice(0, 80);
+                                finalTitle = `Tweet: ${firstLine}${lines[0].length >= 80 ? '…' : ''}`;
+                            }
+                        }
+                    }
+
                     // ─── Stage 6: Infer Category & Save to Notion (Initial) ───
                     const category = inferCategory(summaryResult.tags);
                     const bookmarkData: BookmarkData = {
-                        title,
+                        title: finalTitle,
                         summary: summaryResult.summary,
                         insight,
                         tags: summaryResult.tags,
@@ -77,11 +92,11 @@ export async function POST(req: NextRequest) {
                     const appUrl = `${protocol}://${host}`;
                     const appDetailUrl = `${appUrl}/link/${notionPageId}`;
 
-                    // ─── Stage 5: Upload to Telegra.ph ───
+                    // ─── Stage 5b: Upload to Telegra.ph ───
                     let telegraphUrl = "";
                     try {
                         telegraphUrl = await createTelegraphPage({
-                            title,
+                            title: finalTitle,
                             content,
                             url, // Source URL
                             authorUrl: appDetailUrl, // Author Link -> Our App Detail Page
@@ -96,7 +111,6 @@ export async function POST(req: NextRequest) {
                         }
                     } catch (e) {
                         console.error("Telegra.ph upload failed:", e);
-                        // Continue without telegraphUrl if fails
                     }
 
                     // ─── Stage 7: Send Telegram Response ───
@@ -105,51 +119,58 @@ export async function POST(req: NextRequest) {
                         .replace(/</g, "&lt;")
                         .replace(/>/g, "&gt;");
 
-                    const safeTitle = escapeHtml(title);
+                    const safeTitle = escapeHtml(finalTitle);
                     const safeSummary = escapeHtml(summaryResult.summary);
                     const safeInsight = escapeHtml(insight);
-                    const safeTags = summaryResult.tags.map(t => `#${escapeHtml(t)}`).join(" ");
+                    // Tags format: #Tag1 #Tag2 (LinkMind: underscore for spaces? No, sample uses #Tag)
+                    // LinkMind code: `#${t.replace(/\s+/g, '_')}`
+                    const safeTags = summaryResult.tags.map(t => `#${escapeHtml(t.replace(/\s+/g, '_'))}`).join(" ");
 
-                    // Estimate reading time
-                    const readingTime = Math.ceil(content.length / 500);
-
-                    // Message Format:
-                    // [Title Link to Telegra.ph (Instant View)]
-                    // 原文: [Original URL]
-                    // 阅读时间: [Time] 分钟
+                    // LinkMind Message Format:
+                    // 📄 <b>[Title]</b>
+                    // <a href="[URL]">[Truncated URL]</a>
                     //
+                    // [Tags]
+                    //
+                    // <b>📝 摘要</b>
                     // [Summary]
                     //
+                    // <b>💡 Insight</b>
                     // [Insight]
                     //
-                    // [Footer Links]
+                    // <b>🔗 相关链接</b> (if any)
+                    // • <a href="...">Title</a>
+                    // 
+                    // 🔍 完整分析: [PermanentLink]
 
-                    // Note: notionUrl is not available directly in URL format from ID easily without query
-                    // But we can construct a notion protocol link or just use our app link
-                    // Actually, the previous 'saveBookmark' returned URL. 
-                    // Let's use our App Detail URL as the primary "Knowledge Base" link.
+                    const relatedLinksMsg = relatedLinks.length > 0
+                        ? `\n<b>🔗 相关链接</b>\n` + relatedLinks.map(l => `• <a href="${l.url || '#'}">${escapeHtml((l.title || l.url || '').slice(0, 50))}</a>`).join('\n')
+                        : '';
+
+                    // Truncate URL for display
+                    const displayUrl = url.length > 60 ? url.slice(0, 60) + '...' : url;
 
                     const message = [
-                        `<a href="${telegraphUrl}"><b>${safeTitle}</b></a>`,
-                        `原文：${url}`,
-                        `阅读时间：${readingTime} 分钟`,
+                        `📄 <b><a href="${telegraphUrl || url}">${safeTitle}</a></b>`, // Link Title to Telegra.ph (Instant View)
+                        `<a href="${url}">${displayUrl}</a>`,
                         ``,
-                        `📝 <b>摘要</b>`,
+                        safeTags,
+                        ``,
+                        `<b>📝 摘要</b>`,
                         safeSummary,
                         ``,
-                        `💡 <b>AI 洞见</b>`,
+                        `<b>💡 Insight</b>`,
                         safeInsight,
+                        relatedLinksMsg,
                         ``,
-                        `<i>${category}</i>  ${safeTags}`,
-                        ``,
-                        `<a href="${appDetailUrl}">🔗 查看详情 (App)</a>`
-                    ].join('\n');
+                        `🔍 完整分析: ${appDetailUrl}`
+                    ].filter(Boolean).join('\n');
 
                     await bot.telegram.sendMessage(chatId, message, {
                         parse_mode: "HTML",
                         link_preview_options: {
                             is_disabled: false,
-                            url: telegraphUrl, // Explicitly force the preview to be the Telegraph URL
+                            url: telegraphUrl, // Force Instant View
                             prefer_large_media: true
                         }
                     });
