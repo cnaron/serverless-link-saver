@@ -40,13 +40,8 @@ export async function fetchPageContent(url: string): Promise<PageContent> {
         } catch (e) {
             return { title: "", content: text }; // Fallback if not JSON
         }
-        // Fallback if structure is different but still valid JSON
-        return { title: "", content: text };
-    } catch (e) {
-        return { title: "", content: text }; // Fallback if not JSON
+    } catch (error) {
+        console.error("Error fetching content from Jina:", error);
+        return { title: "", content: "" };
     }
-} catch (error) {
-    console.error("Error fetching content from Jina:", error);
-    return { title: "", content: "" };
-}
 }
