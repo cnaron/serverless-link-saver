@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
                     // Handle both string (legacy) and object return types just in case, though we know it's object now
                     const content = typeof pageData === 'string' ? pageData : pageData.content;
                     const jinaTitle = typeof pageData === 'string' ? undefined : pageData.title;
+                    const jinaImage = typeof pageData === 'string' ? undefined : pageData.image;
 
                     if (!content) throw new Error("无法从 Jina Reader 获取内容");
 
@@ -138,7 +139,8 @@ export async function POST(req: NextRequest) {
                             url,
                             authorUrl: appDetailUrl,
                             summary: summaryResult.summary,
-                            insight
+                            insight,
+                            image: jinaImage // <--- Pass extracted Jina image
                         });
 
                         if (telegraphUrl) {
