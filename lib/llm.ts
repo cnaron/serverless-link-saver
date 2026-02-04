@@ -1,20 +1,60 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-1.5-flash";
 
-// Helper: Retry with exponential backoff
-async function retry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
-    try {
-        return await fn();
-    } catch (error: any) {
-        if (retries > 0 && (error.status === 429 || error.message?.includes('429'))) {
-            console.warn(`Rate limit hit. Retrying in ${delay}ms... (${retries} left)`);
-            await new Promise(res => setTimeout(res, delay));
-            return retry(fn, retries - 1, delay * 2);
+// User-specified fallback chain. 
+// Logic: Try #1 -> 429? -> Try #2 -> 429? -> Try #3.
+const FALLBACK_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3-flash-preview"
+];
+
+/**
+ * Executes a generation request with robust fallback across multiple models.
+ * If a model returns 429 (Rate Limit), it automatically tries the next one.
+ */
+async function generateWithFallback(
+    prompt: string,
+    generationConfig?: any
+) {
+    let lastError: any;
+
+    for (const modelName of FALLBACK_MODELS) {
+        try {
+            // console.log(`[LLM] Attempting with model: ${modelName}`);
+            const model = genAI.getGenerativeModel({
+                model: modelName,
+                generationConfig
+            });
+
+            const result = await model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            });
+
+            return result; // Success!
+
+        } catch (error: any) {
+            lastError = error;
+
+            // Check for Rate Limit (429) or Service Unavailable (503)
+            const isRetryable = error.status === 429 ||
+                error.status === 503 ||
+                error.message?.includes('429') ||
+                error.message?.includes('503');
+
+            if (isRetryable) {
+                console.warn(`[LLM] Model ${modelName} failed (${error.status}). Switching to next model...`);
+                continue; // Try next model in list
+            }
+
+            // If it's a non-retriable error (e.g. 400 Bad Request), throw immediately
+            throw error;
         }
-        throw error;
     }
+
+    // If we run out of models, throw the last error
+    throw new Error(`All models failed. Last error: ${lastError?.message}`);
 }
 
 export interface SummaryResult {
@@ -44,11 +84,6 @@ export async function generateSummary(input: {
     markdown: string;
 }): Promise<SummaryResult> {
     try {
-        const model = genAI.getGenerativeModel({
-            model: MODEL_NAME,
-            generationConfig: { responseMimeType: "application/json" }
-        });
-
         // Truncate to avoid token limits (LinkMind uses 12000)
         const content = input.markdown.slice(0, 12000);
 
@@ -68,10 +103,11 @@ export async function generateSummary(input: {
 正文:
 ${content}`;
 
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 2048 }
+        const result = await generateWithFallback(prompt, {
+            responseMimeType: "application/json",
+            maxOutputTokens: 2048
         });
+
         const text = result.response.text();
         const cleanText = text.replace(/```json\n?|\n?```/g, "").trim();
 
@@ -101,8 +137,6 @@ export async function generateInsight(input: {
     relatedLinks: RelatedLink[];
 }): Promise<string> {
     try {
-        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-
         const linksContext = input.relatedLinks.length > 0
             ? input.relatedLinks.map(l => `- [${l.title}](${l.url || '#'}) ${l.summary.slice(0, 100)}`).join('\n')
             : '（无相关历史链接）';
@@ -128,10 +162,10 @@ ${linksContext}
 
 请给出你的 insight：`;
 
-        const result = await retry(() => model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 1024 }
-        }));
+        const result = await generateWithFallback(prompt, {
+            maxOutputTokens: 1024
+        });
+
         const text = result.response.text();
         return text || '无法生成 insight';
     } catch (error) {
