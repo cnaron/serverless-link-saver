@@ -63,12 +63,24 @@ export async function POST(req: NextRequest) {
                     let finalTitle = title;
                     const isTwitter = url.includes("twitter.com") || url.includes("x.com");
                     if (isTwitter) {
-                        // Try to extract author and first line from content if title is generic
-                        if (title.trim() === "X" || title.includes("on X")) {
-                            const lines = content.split('\n').filter(l => l.trim().length > 0);
+                        // Aggressively fix generic Twitter titles (Jina often returns "Post", "X", "Tweet")
+                        const genericTitles = ["X", "Post", "Tweet", "Thread"];
+                        const isGeneric = genericTitles.some(t => title.trim() === t) ||
+                            title.includes("on X") ||
+                            title.includes("on Twitter") ||
+                            title.length < 10; // Heuristic: very short titles are usually bad for tweets
+
+                        if (isGeneric) {
+                            // Clean content lines to find real text
+                            const lines = content.split('\n')
+                                .map(l => l.replace(/^#+\s*/, '').trim()) // Remove markdown headers (e.g. "# Post")
+                                .filter(l => l.length > 0)
+                                .filter(l => !genericTitles.includes(l)); // Skip lines that are just "Post"
+
                             if (lines.length > 0) {
+                                // Use first meaningful line as title
                                 const firstLine = lines[0].slice(0, 80);
-                                finalTitle = `Tweet: ${firstLine}${lines[0].length >= 80 ? '…' : ''}`;
+                                finalTitle = `${firstLine}${lines[0].length >= 80 ? '…' : ''}`;
                             }
                         }
                     }
