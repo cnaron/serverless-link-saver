@@ -80,8 +80,13 @@ function processToken(token: any): any {
         }
         return imgNode;
     }
-    if (token.type === 'br' || token.type === 'space') {
+    if (token.type === 'br') {
         return { tag: 'br' };
+    }
+    if (token.type === 'space') {
+        // Ignore structural spacing tokens (paragraphs provide their own spacing)
+        // This fixes the "too many empty lines" issue.
+        return null;
     }
     if (token.type === 'hr') {
         return { tag: 'hr' };
