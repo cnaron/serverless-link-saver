@@ -3,6 +3,20 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-1.5-flash";
 
+// Helper: Retry with exponential backoff
+async function retry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+    try {
+        return await fn();
+    } catch (error: any) {
+        if (retries > 0 && (error.status === 429 || error.message?.includes('429'))) {
+            console.warn(`Rate limit hit. Retrying in ${delay}ms... (${retries} left)`);
+            await new Promise(res => setTimeout(res, delay));
+            return retry(fn, retries - 1, delay * 2);
+        }
+        throw error;
+    }
+}
+
 export interface SummaryResult {
     summary: string;
     tags: string[];
@@ -114,10 +128,10 @@ ${linksContext}
 
 请给出你的 insight：`;
 
-        const result = await model.generateContent({
+        const result = await retry(() => model.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: { maxOutputTokens: 1024 }
-        });
+        }));
         const text = result.response.text();
         return text || '无法生成 insight';
     } catch (error) {
