@@ -113,7 +113,7 @@ ${linksContext}
         return text || '无法生成 insight';
     } catch (error) {
         console.error("Error in generateInsight:", error);
-        return '无法生成 insight';
+        return `无法生成 insight (${error instanceof Error ? error.message : String(error)})`;
     }
 }
 
