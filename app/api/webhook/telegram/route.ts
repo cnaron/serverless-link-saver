@@ -29,14 +29,19 @@ export async function POST(req: NextRequest) {
             if (urls && urls.length > 0) {
                 const url = urls[0];
 
-                // Send initial status message
-                const statusMsg = await bot.telegram.sendMessage(chatId, `⏳ 正在处理: ${url}`);
+                // Send initial status message (Disable preview to prevent sticking to original URL)
+                const statusMsg = await bot.telegram.sendMessage(chatId, `⏳ 正在处理: ${url}`, {
+                    link_preview_options: { is_disabled: true }
+                });
                 const statusMsgId = statusMsg.message_id;
 
-                // Helper to safely edit message
+                // Helper to safely edit message (Keep preview disabled during updates)
                 const updateStatus = async (text: string) => {
                     try {
-                        await bot.telegram.editMessageText(chatId, statusMsgId, undefined, text);
+                        await bot.telegram.editMessageText(chatId, statusMsgId, undefined, text, {
+                            parse_mode: 'HTML',
+                            link_preview_options: { is_disabled: true }
+                        });
                     } catch (e) {
                         console.error("Failed to update status:", e);
                     }
