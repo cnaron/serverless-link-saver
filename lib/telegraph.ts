@@ -3,6 +3,12 @@ import { marked } from "marked";
 
 const ph = new Telegraph();
 
+// Configure Marked to treat newlines as <br> (breaks: true)
+marked.use({
+    breaks: true,
+    gfm: true
+});
+
 // User should persist this token. For serverless, we'll try to use an env var, 
 // or create a new account if missing (not ideal for editing, but fine for archiving).
 const ACCESS_TOKEN = process.env.TELEGRAPH_ACCESS_TOKEN;
