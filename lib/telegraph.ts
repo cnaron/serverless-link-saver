@@ -303,7 +303,10 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
 
     headerNodes.push({
         tag: 'p',
-        children: [`📅 ${beijingTime} | 🤖 AI 智能存档`]
+        children: [
+            { tag: 'a', attrs: { href: opts.url }, children: [`🔗 原文链接`] },
+            `  |  📅 ${beijingTime}`
+        ]
     });
 
     if (opts.summary) {
@@ -323,19 +326,7 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
     headerNodes.push({ tag: 'h4', children: ['📄 原文内容'] });
     headerNodes.push({ tag: 'br' });
 
-    // Footer: Original Link
-    const footerNodes = [
-        { tag: 'hr' },
-        {
-            tag: 'p',
-            children: [
-                `🔗 `,
-                { tag: 'a', attrs: { href: opts.url }, children: [`原文链接: ${opts.title}`] }
-            ]
-        }
-    ];
-
-    const finalNodes = [...headerNodes, ...contentNodes, ...footerNodes];
+    const finalNodes = [...headerNodes, ...contentNodes];
 
     const page = await ph.createPage(token!, opts.title, finalNodes, {
         author_name: "LinkSaver AI",

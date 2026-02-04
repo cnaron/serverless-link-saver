@@ -168,7 +168,6 @@ export async function POST(req: NextRequest) {
 
                     const message = [
                         `📄 <b><a href="${telegraphUrl || url}">${safeTitle}</a></b>`,
-                        `<a href="${url}">${displayUrl}</a>`,
                         ``,
                         safeTags,
                         ``,
@@ -179,6 +178,7 @@ export async function POST(req: NextRequest) {
                         safeInsight,
                         relatedLinksMsg,
                         ``,
+                        `🔗 <b>原文</b>: <a href="${url}">${displayUrl}</a>`,
                         `🔍 摘抄本存档: ${appDetailUrl}`
                     ].filter(Boolean).join('\n');
 
