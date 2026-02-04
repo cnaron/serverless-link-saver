@@ -29,18 +29,42 @@ export async function POST(req: NextRequest) {
             if (urls && urls.length > 0) {
                 const url = urls[0];
 
-                await bot.telegram.sendMessage(chatId, `⏳ 正在处理: ${url}`);
+                // Send initial status message
+                const statusMsg = await bot.telegram.sendMessage(chatId, `⏳ 正在处理: ${url}`);
+                const statusMsgId = statusMsg.message_id;
+
+                // Helper to safely edit message
+                const updateStatus = async (text: string) => {
+                    try {
+                        await bot.telegram.editMessageText(chatId, statusMsgId, undefined, text);
+                    } catch (e) {
+                        console.error("Failed to update status:", e);
+                    }
+                };
 
                 try {
                     // ─── Stage 1: Fetch Content ───
-                    const content = await fetchPageContent(url);
+                    await updateStatus(`📖 正在获取页面内容...`);
+                    const pageData = await fetchPageContent(url);
+
+                    // Handle both string (legacy) and object return types just in case, though we know it's object now
+                    const content = typeof pageData === 'string' ? pageData : pageData.content;
+                    const jinaTitle = typeof pageData === 'string' ? undefined : pageData.title;
+
                     if (!content) throw new Error("无法从 Jina Reader 获取内容");
 
-                    // Extract title from markdown (first line usually is the title)
-                    const titleMatch = content.match(/^#?\s*(.+)/);
-                    let title = titleMatch ? titleMatch[1].trim() : url;
+                    // Extract title strategy:
+                    // 1. Use Jina's authoritative title if available and valid
+                    // 2. Fallback to extracting first line of markdown
+                    // 3. Fallback to URL
+                    let title = jinaTitle;
+                    if (!title || title.trim().length === 0 || title === "undefined") {
+                        const titleMatch = content.match(/^#?\s*(.+)/);
+                        title = titleMatch ? titleMatch[1].trim() : url;
+                    }
 
                     // ─── Stage 2: Generate Summary + Tags ───
+                    await updateStatus(`🧠 正在生成摘要与洞见...`);
                     const summaryResult = await generateSummary({
                         url,
                         title,
@@ -48,6 +72,7 @@ export async function POST(req: NextRequest) {
                     });
 
                     // ─── Stage 3: Find Related Links ───
+                    // This explicitly finds connections in your Notion database to inject into the Insight prompt
                     const relatedLinks = await searchRelatedLinks(summaryResult.tags, 5);
 
                     // ─── Stage 4: Generate Insight ───
@@ -55,30 +80,26 @@ export async function POST(req: NextRequest) {
                         title,
                         url,
                         summary: summaryResult.summary,
-                        relatedLinks
+                        relatedLinks // <--- Pass related links here for context injection
                     });
 
                     // ─── Stage 5: Title & Metadata Refinement ───
-                    // Align title logic with LinkMind (especially for Twitter)
                     let finalTitle = title;
                     const isTwitter = url.includes("twitter.com") || url.includes("x.com");
                     if (isTwitter) {
-                        // Aggressively fix generic Twitter titles (Jina often returns "Post", "X", "Tweet")
                         const genericTitles = ["X", "Post", "Tweet", "Thread"];
                         const isGeneric = genericTitles.some(t => title.trim() === t) ||
                             title.includes("on X") ||
                             title.includes("on Twitter") ||
-                            title.length < 10; // Heuristic: very short titles are usually bad for tweets
+                            title.length < 10;
 
                         if (isGeneric) {
-                            // Clean content lines to find real text
                             const lines = content.split('\n')
-                                .map(l => l.replace(/^#+\s*/, '').trim()) // Remove markdown headers (e.g. "# Post")
+                                .map(l => l.replace(/^#+\s*/, '').trim())
                                 .filter(l => l.length > 0)
-                                .filter(l => !genericTitles.includes(l)); // Skip lines that are just "Post"
+                                .filter(l => !genericTitles.includes(l));
 
                             if (lines.length > 0) {
-                                // Use first meaningful line as title
                                 const firstLine = lines[0].slice(0, 80);
                                 finalTitle = `${firstLine}${lines[0].length >= 80 ? '…' : ''}`;
                             }
@@ -86,6 +107,7 @@ export async function POST(req: NextRequest) {
                     }
 
                     // ─── Stage 6: Infer Category & Save to Notion (Initial) ───
+                    await updateStatus(`💾 正在归档至 Notion ...`);
                     const category = inferCategory(summaryResult.tags);
                     const bookmarkData: BookmarkData = {
                         title: finalTitle,
@@ -95,8 +117,6 @@ export async function POST(req: NextRequest) {
                         category
                     };
 
-                    // Save first to get the Notion Page ID
-                    // We need this ID to generate the App URL for the Telegra.ph author link
                     const notionPageId = await saveBookmark(bookmarkData, url, undefined);
 
                     const host = req.headers.get("host") || "serverless-link-saver.vercel.app";
@@ -110,13 +130,12 @@ export async function POST(req: NextRequest) {
                         telegraphUrl = await createTelegraphPage({
                             title: finalTitle,
                             content,
-                            url, // Source URL
-                            authorUrl: appDetailUrl, // Author Link -> Our App Detail Page
+                            url,
+                            authorUrl: appDetailUrl,
                             summary: summaryResult.summary,
                             insight
                         });
 
-                        // Update Notion with the Archive URL
                         if (telegraphUrl) {
                             const { updateBookmarkArchiveUrl } = require("@/lib/notion");
                             await updateBookmarkArchiveUrl(notionPageId, telegraphUrl);
@@ -134,36 +153,16 @@ export async function POST(req: NextRequest) {
                     const safeTitle = escapeHtml(finalTitle);
                     const safeSummary = escapeHtml(summaryResult.summary);
                     const safeInsight = escapeHtml(insight);
-                    // Tags format: #Tag1 #Tag2 (LinkMind: underscore for spaces? No, sample uses #Tag)
-                    // LinkMind code: `#${t.replace(/\s+/g, '_')}`
                     const safeTags = summaryResult.tags.map(t => `#${escapeHtml(t.replace(/\s+/g, '_'))}`).join(" ");
-
-                    // LinkMind Message Format:
-                    // 📄 <b>[Title]</b>
-                    // <a href="[URL]">[Truncated URL]</a>
-                    //
-                    // [Tags]
-                    //
-                    // <b>📝 摘要</b>
-                    // [Summary]
-                    //
-                    // <b>💡 Insight</b>
-                    // [Insight]
-                    //
-                    // <b>🔗 相关链接</b> (if any)
-                    // • <a href="...">Title</a>
-                    // 
-                    // 🔍 完整分析: [PermanentLink]
 
                     const relatedLinksMsg = relatedLinks.length > 0
                         ? `\n<b>🔗 相关链接</b>\n` + relatedLinks.map(l => `• <a href="${l.url || '#'}">${escapeHtml((l.title || l.url || '').slice(0, 50))}</a>`).join('\n')
                         : '';
 
-                    // Truncate URL for display
                     const displayUrl = url.length > 60 ? url.slice(0, 60) + '...' : url;
 
                     const message = [
-                        `📄 <b><a href="${telegraphUrl || url}">${safeTitle}</a></b>`, // Link Title to Telegra.ph (Instant View)
+                        `📄 <b><a href="${telegraphUrl || url}">${safeTitle}</a></b>`,
                         `<a href="${url}">${displayUrl}</a>`,
                         ``,
                         safeTags,
@@ -178,7 +177,8 @@ export async function POST(req: NextRequest) {
                         `🔍 完整分析: ${appDetailUrl}`
                     ].filter(Boolean).join('\n');
 
-                    await bot.telegram.sendMessage(chatId, message, {
+                    // Final Edit: Show Result
+                    await bot.telegram.editMessageText(chatId, statusMsgId, undefined, message, {
                         parse_mode: "HTML",
                         link_preview_options: {
                             is_disabled: false,
@@ -190,10 +190,8 @@ export async function POST(req: NextRequest) {
                 } catch (err) {
                     console.error(err);
                     const errorMessage = err instanceof Error ? err.message : String(err);
-                    await bot.telegram.sendMessage(
-                        chatId,
-                        `❌ Error: ${errorMessage}`
-                    );
+                    // Edit status message to show error
+                    await updateStatus(`❌ 处理失败: ${errorMessage}`);
                 }
             }
         }
