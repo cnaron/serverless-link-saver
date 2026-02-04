@@ -278,59 +278,58 @@ interface TelegraphPageOptions {
 /**
  * Uploads content to Telegra.ph with rich header and metadata.
  */
+/**
+ * Uploads content to Telegra.ph with rich header and metadata.
+ */
 export async function createTelegraphPage(opts: TelegraphPageOptions) {
     let token = ACCESS_TOKEN;
 
     if (!token) {
-        // Fallback: Create a temporary account (Token will be lost on restart!)
-        // In production, user should set TELEGRAPH_ACCESS_TOKEN env var.
         console.warn("TELEGRAPH_ACCESS_TOKEN not found. Creating temporary account.");
         token = await createAccount("LinkSaver", "AI Link Saver");
     }
 
     const contentNodes = markdownToNodes(opts.content);
+    const beijingTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    // Simplify date for author field
+    const simpleDate = beijingTime.split(' ')[0];
 
-    // Construct Header Nodes
-    // 1. Original Link
-    // 2. Beijing Time
-    // 3. Summary (Quote block)
-    // 4. Insight (Quote block with indicator)
-    // 5. Divider
     const headerNodes: any[] = [];
 
-    // Beijing Time
-    const beijingTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-
-    headerNodes.push({
-        tag: 'p',
-        children: [
-            { tag: 'a', attrs: { href: opts.url }, children: [`🔗 原文链接`] },
-            `  |  📅 ${beijingTime}`
-        ]
-    });
+    // Strategy Update:
+    // 1. Metadata (Link/Date) -> Moved to 'Author' field natively supported by IV
+    // 2. Summary/Insight -> Converted to <p> to ensure they appear in Telegram Card Preview
 
     if (opts.summary) {
-        headerNodes.push({ tag: 'h4', children: ['📝 AI 摘要'] });
-        headerNodes.push({ tag: 'blockquote', children: [opts.summary] });
-    }
-
-    if (opts.insight) {
-        headerNodes.push({ tag: 'h4', children: ['💡 深度洞见'] });
         headerNodes.push({
-            tag: 'blockquote',
-            children: [{ tag: 'b', children: ['Insight: '] }, opts.insight]
+            tag: 'p',
+            children: [
+                { tag: 'b', children: ['📝 AI 摘要：'] },
+                opts.summary
+            ]
         });
     }
 
-    headerNodes.push({ tag: 'hr' });
-    headerNodes.push({ tag: 'h4', children: ['📄 原文内容'] });
-    headerNodes.push({ tag: 'br' });
+    if (opts.insight) {
+        headerNodes.push({
+            tag: 'p',
+            children: [
+                { tag: 'b', children: ['💡 Insight：'] },
+                opts.insight
+            ]
+        });
+    }
+
+    // Divider only if we have summary/insight
+    if (headerNodes.length > 0) {
+        headerNodes.push({ tag: 'hr' });
+    }
 
     const finalNodes = [...headerNodes, ...contentNodes];
 
     const page = await ph.createPage(token!, opts.title, finalNodes, {
-        author_name: "LinkSaver AI",
-        author_url: opts.authorUrl || opts.url,
+        author_name: `LinkSaver • ${simpleDate}`, // "LinkSaver • 2026/02/04"
+        author_url: opts.url, // Clicking author jumps to original
         return_content: true
     });
 
