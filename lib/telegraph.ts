@@ -30,12 +30,21 @@ function stripHtml(html: string) {
 /**
  * Converts Marked tokens to Telegraph Nodes recursively.
  */
+// Helper to map and flatten tokens
+function processTokens(tokens: any[]): any[] {
+    if (!tokens) return [];
+    return tokens.map(processToken).flat();
+}
+
+/**
+ * Converts Marked tokens to Telegraph Nodes recursively.
+ */
 function processToken(token: any): any {
     // 1. Text Nodes
     if (token.type === 'text' || token.type === 'escape') {
         // Handle inline formatting recursively if present
         if (token.tokens && token.tokens.length > 0) {
-            return token.tokens.map(processToken);
+            return processTokens(token.tokens);
         }
         // Fallback: Check for raw HTML-like strings that Marked might have missed or passed through
         // But for Telegraph purely text node, we just return text.
@@ -44,13 +53,13 @@ function processToken(token: any): any {
 
     // 2. Inline Formatting
     if (token.type === 'strong') {
-        return { tag: 'b', children: token.tokens.map(processToken) };
+        return { tag: 'b', children: processTokens(token.tokens) };
     }
     if (token.type === 'em') {
-        return { tag: 'i', children: token.tokens.map(processToken) };
+        return { tag: 'i', children: processTokens(token.tokens) };
     }
     if (token.type === 'del') {
-        return { tag: 's', children: token.tokens.map(processToken) };
+        return { tag: 's', children: processTokens(token.tokens) };
     }
     if (token.type === 'codespan') {
         return { tag: 'code', children: [token.text] };
@@ -59,7 +68,7 @@ function processToken(token: any): any {
         return {
             tag: 'a',
             attrs: { href: token.href },
-            children: token.tokens.map(processToken)
+            children: processTokens(token.tokens)
         };
     }
     if (token.type === 'image') {
@@ -96,22 +105,23 @@ function processToken(token: any): any {
     if (token.type === 'paragraph') {
         // Special case: If paragraph contains ONLY an image, don't wrap in p tag?
         // Telegraph P tag can contain links and text.
-        return { tag: 'p', children: token.tokens.map(processToken) };
+        return { tag: 'p', children: processTokens(token.tokens) };
     }
     if (token.type === 'heading') {
         const tag = token.depth <= 2 ? 'h3' : 'h4';
-        return { tag, children: token.tokens.map(processToken) };
+        return { tag, children: processTokens(token.tokens) };
     }
     if (token.type === 'list') {
         const tag = token.ordered ? 'ol' : 'ul';
+        // items is array of list_item tokens
         return {
             tag,
-            children: token.items.map(processToken)
+            children: token.items.map(processToken) // list items themselves are wrappers, don't flatten list items into one list
         };
     }
     if (token.type === 'list_item') {
         // List items in marked can have 'task' checkbox
-        let children = token.tokens.map(processToken);
+        let children = processTokens(token.tokens);
         if (token.task) {
             const checkbox = token.checked ? '[x] ' : '[ ] ';
             children = [checkbox, ...children];
@@ -124,7 +134,7 @@ function processToken(token: any): any {
     if (token.type === 'blockquote') {
         return {
             tag: 'blockquote',
-            children: token.tokens.map(processToken)
+            children: processTokens(token.tokens)
         };
     }
     if (token.type === 'code') {
