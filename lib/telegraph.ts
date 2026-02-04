@@ -213,9 +213,11 @@ function processToken(token: any): any {
     return "";
 }
 
+const BLOCK_TAGS = ['p', 'h3', 'h4', 'blockquote', 'aside', 'figure', 'ul', 'ol', 'hr', 'pre'];
+
 function markdownToNodes(markdown: string): any[] {
     const tokens = marked.lexer(markdown);
-    const nodes: any[] = [];
+    const rawNodes: any[] = [];
 
     // Helper to flatten arrays
     const addNode = (n: any) => {
@@ -223,7 +225,7 @@ function markdownToNodes(markdown: string): any[] {
         if (Array.isArray(n)) {
             n.forEach(addNode);
         } else {
-            nodes.push(n);
+            rawNodes.push(n);
         }
     };
 
@@ -231,7 +233,37 @@ function markdownToNodes(markdown: string): any[] {
         addNode(processToken(token));
     });
 
-    return nodes;
+    // Group consecutive inline nodes into <p>
+    const finalNodes: any[] = [];
+    let inlineBuffer: any[] = [];
+
+    const flushBuffer = () => {
+        if (inlineBuffer.length > 0) {
+            finalNodes.push({
+                tag: 'p',
+                children: [...inlineBuffer]
+            });
+            inlineBuffer = [];
+        }
+    };
+
+    for (const node of rawNodes) {
+        // If node is a string, it's inline text
+        // If node is an object with a tag, check if it's a block tag
+        const isBlock = typeof node === 'object' && node.tag && BLOCK_TAGS.includes(node.tag);
+
+        if (isBlock) {
+            flushBuffer();
+            finalNodes.push(node);
+        } else {
+            // It's inline (text, b, i, a, br, img, etc not in figure)
+            // Note: img can be block-like but telegra.ph accepts p>img
+            inlineBuffer.push(node);
+        }
+    }
+    flushBuffer();
+
+    return finalNodes;
 }
 
 interface TelegraphPageOptions {
