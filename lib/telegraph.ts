@@ -33,7 +33,7 @@ function stripHtml(html: string) {
 // Helper to map and flatten tokens
 function processTokens(tokens: any[]): any[] {
     if (!tokens) return [];
-    return tokens.map(processToken).flat();
+    return tokens.map(processToken).flat().filter(Boolean);
 }
 
 /**
