@@ -273,6 +273,7 @@ interface TelegraphPageOptions {
     authorUrl?: string; // URL for the Author link (e.g. our App Detail Page)
     summary?: string;
     insight?: string;
+    image?: string;
 }
 
 /**
