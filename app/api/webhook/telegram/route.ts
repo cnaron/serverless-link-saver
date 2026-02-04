@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
                         safeInsight,
                         relatedLinksMsg,
                         ``,
-                        `🔍 完整分析: ${appDetailUrl}`
+                        `🔍 摘抄本存档: ${appDetailUrl}`
                     ].filter(Boolean).join('\n');
 
                     // Final Edit: Show Result
