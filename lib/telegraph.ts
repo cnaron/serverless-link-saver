@@ -126,15 +126,41 @@ function processToken(token: any): any {
             const checkbox = token.checked ? '[x] ' : '[ ] ';
             children = [checkbox, ...children];
         }
+
+        // Unwrap <p> tags inside <li> to prevent invalid nesting for Instant View
+        // Telegraph doesn't like block level elements inside <li> sometimes
+        children = children.flatMap(child => {
+            if (child && typeof child === 'object' && child.tag === 'p') {
+                return child.children || [];
+            }
+            return child;
+        });
+
         return {
             tag: 'li',
             children: children
         };
     }
     if (token.type === 'blockquote') {
+        let children = processTokens(token.tokens);
+
+        // Unwrap <p> tags inside <blockquote>
+        children = children.flatMap(child => {
+            if (child && typeof child === 'object' && child.tag === 'p') {
+                // Add a break if there are multiple paragraphs
+                return [...(child.children || []), { tag: 'br' }];
+            }
+            return child;
+        });
+
+        // Remove trailing <br> if added
+        if (children.length > 0 && children[children.length - 1].tag === 'br') {
+            children.pop();
+        }
+
         return {
             tag: 'blockquote',
-            children: processTokens(token.tokens)
+            children: children
         };
     }
     if (token.type === 'code') {
