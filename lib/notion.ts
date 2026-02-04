@@ -152,6 +152,7 @@ export async function searchRelatedLinks(tags: string[], limit: number = 5): Pro
         return data.results.slice(0, limit).map((page: any): RelatedLink => {
             const props = page.properties;
             return {
+                id: page.id,
                 title: props.Name?.title?.[0]?.plain_text || "Untitled",
                 summary: props.Summary?.rich_text?.[0]?.plain_text || "",
                 url: props.URL?.url || undefined,

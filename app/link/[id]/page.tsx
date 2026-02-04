@@ -130,7 +130,21 @@ export default async function LinkDetail({ params }: { params: { id: string } })
                         <div className="section-title">相关链接</div>
                         {relatedLinks.filter(l => l.url !== link.url).map((related, i) => (
                             <div key={i} className="related-item">
-                                🔗 <a href={related.url || '#'} target="_blank">{related.title || related.url}</a>
+                                🔗
+                                {related.id ? (
+                                    <Link href={`/link/${related.id}`} className="related-title">
+                                        {related.title || related.url}
+                                    </Link>
+                                ) : (
+                                    <a href={related.url || '#'} target="_blank" className="related-title">{related.title || related.url}</a>
+                                )}
+
+                                {related.url && (
+                                    <a href={related.url} target="_blank" style={{ marginLeft: '8px', opacity: 0.5, textDecoration: 'none' }} title="Original Source">
+                                        ↗
+                                    </a>
+                                )}
+
                                 <br />
                                 <span className="related-snippet">
                                     {related.summary?.slice(0, 60)}...

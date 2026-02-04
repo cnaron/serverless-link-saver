@@ -13,6 +13,7 @@ export interface InsightResult {
 }
 
 export interface RelatedLink {
+    id?: string;
     title: string;
     summary: string;
     url?: string;

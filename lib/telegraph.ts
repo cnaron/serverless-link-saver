@@ -16,23 +16,23 @@ export async function createAccount(shortName: string, authorName: string) {
     return account.access_token;
 }
 
-/**
- * Converts Markdown to Telegra.ph Nodes.
- * Since telegraph-node expects a specific DOM-like structure, we'll do a simplified conversion.
- * 
- * Note: telegraph-node's types might be tricky. The API expects an array of Nodes.
- * Node = String | { tag: string, attrs?: object, children?: Node[] }
- */
+// Helper to strip HTML tags if needed
+function stripHtml(html: string) {
+    return html.replace(/<[^>]*>?/gm, '');
+}
+
 /**
  * Converts Marked tokens to Telegraph Nodes recursively.
  */
 function processToken(token: any): any {
     // 1. Text Nodes
     if (token.type === 'text' || token.type === 'escape') {
-        // If the text token has nested tokens (inline formatting), process them recursively
-        if (token.tokens) {
+        // Handle inline formatting recursively if present
+        if (token.tokens && token.tokens.length > 0) {
             return token.tokens.map(processToken);
         }
+        // Fallback: Check for raw HTML-like strings that Marked might have missed or passed through
+        // But for Telegraph purely text node, we just return text.
         return token.text;
     }
 
@@ -57,22 +57,37 @@ function processToken(token: any): any {
         };
     }
     if (token.type === 'image') {
-        return {
+        // Telegraph creates a figure for images with caption usually, but single img tag is allowed
+        // But caption is nice.
+        const imgNode = {
             tag: 'img',
             attrs: { src: token.href },
-            children: [] // Images are void elements in Telegraph usually
         };
+        if (token.title || token.text) {
+            return {
+                tag: 'figure',
+                children: [
+                    imgNode,
+                    { tag: 'figcaption', children: [token.title || token.text] }
+                ]
+            };
+        }
+        return imgNode;
     }
     if (token.type === 'br' || token.type === 'space') {
         return { tag: 'br' };
     }
+    if (token.type === 'hr') {
+        return { tag: 'hr' };
+    }
 
     // 3. Block Elements
     if (token.type === 'paragraph') {
+        // Special case: If paragraph contains ONLY an image, don't wrap in p tag?
+        // Telegraph P tag can contain links and text.
         return { tag: 'p', children: token.tokens.map(processToken) };
     }
     if (token.type === 'heading') {
-        // Telegraph only supports h3 and h4. Map h1/h2 -> h3
         const tag = token.depth <= 2 ? 'h3' : 'h4';
         return { tag, children: token.tokens.map(processToken) };
     }
@@ -84,9 +99,15 @@ function processToken(token: any): any {
         };
     }
     if (token.type === 'list_item') {
+        // List items in marked can have 'task' checkbox
+        let children = token.tokens.map(processToken);
+        if (token.task) {
+            const checkbox = token.checked ? '[x] ' : '[ ] ';
+            children = [checkbox, ...children];
+        }
         return {
             tag: 'li',
-            children: token.tokens.map(processToken)
+            children: children
         };
     }
     if (token.type === 'blockquote') {
@@ -96,6 +117,7 @@ function processToken(token: any): any {
         };
     }
     if (token.type === 'code') {
+        // Telegraph doesn't support syntax highlighting classes, just pre/code
         return {
             tag: 'pre',
             children: [{
@@ -105,39 +127,61 @@ function processToken(token: any): any {
         };
     }
 
-    // 4. HTML parsing basic support
+    // 4. HTML parsing - Robust Attempt
     if (token.type === 'html') {
-        // Allow basic tags if possible, or just return text content
-        // For simple bold/italic in HTML
-        if (token.text.match(/<b>|<strong>/)) {
-            return { tag: 'b', children: [token.text.replace(/<[^>]*>/g, '')] };
+        const html = token.text.trim();
+
+        // Check for specific tags Telegraph supports
+        if (html.startsWith('<img')) {
+            const srcMatch = html.match(/src="([^"]+)"/);
+            if (srcMatch) return { tag: 'img', attrs: { src: srcMatch[1] } };
         }
-        if (token.text.match(/<i>|<em>/)) {
-            return { tag: 'i', children: [token.text.replace(/<[^>]*>/g, '')] };
+
+        if (html.startsWith('<video')) {
+            const srcMatch = html.match(/src="([^"]+)"/);
+            if (srcMatch) return { tag: 'video', attrs: { src: srcMatch[1] } };
         }
-        return token.text.replace(/<[^>]*>/g, ''); // Strip tags for safety/compatibility
+
+        if (html.startsWith('<iframe')) {
+            const srcMatch = html.match(/src="([^"]+)"/);
+            // Telegraph allows iframes from YouTube, Vimeo, Twitter, etc.
+            if (srcMatch) return { tag: 'iframe', attrs: { src: srcMatch[1] } };
+        }
+
+        // Simple formatting
+        if (html.includes('<b>') || html.includes('<strong>')) {
+            return { tag: 'b', children: [stripHtml(html)] };
+        }
+        if (html.includes('<i>') || html.includes('<em>')) {
+            return { tag: 'i', children: [stripHtml(html)] };
+        }
+
+        // Just return text content if we can't map it safely
+        return stripHtml(html);
     }
 
-    // Fallback for unknown elements -> string representation only
-    // Ideally we shouldn't hit this often if we cover standard tokens
+    // Fallback: return nothing for unknown blocks to avoid crashing telegraph API
+    // but try to return text if possible
     if (token.text) return token.text;
     return "";
 }
 
 function markdownToNodes(markdown: string): any[] {
     const tokens = marked.lexer(markdown);
-
-    // Flatten the result of mapping, as processToken can return arrays (fragment-like) 
-    // or single objects
     const nodes: any[] = [];
 
-    tokens.forEach(token => {
-        const result = processToken(token);
-        if (Array.isArray(result)) {
-            nodes.push(...result);
-        } else if (result) {
-            nodes.push(result);
+    // Helper to flatten arrays
+    const addNode = (n: any) => {
+        if (!n) return;
+        if (Array.isArray(n)) {
+            n.forEach(addNode);
+        } else {
+            nodes.push(n);
         }
+    };
+
+    tokens.forEach(token => {
+        addNode(processToken(token));
     });
 
     return nodes;
