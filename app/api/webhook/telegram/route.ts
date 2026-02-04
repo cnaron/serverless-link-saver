@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
                     // 1. Use Jina's authoritative title if available and valid
                     // 2. Fallback to extracting first line of markdown
                     // 3. Fallback to URL
-                    let title = jinaTitle;
+                    let title = jinaTitle || "";
                     if (!title || title.trim().length === 0 || title === "undefined") {
                         const titleMatch = content.match(/^#?\s*(.+)/);
                         title = titleMatch ? titleMatch[1].trim() : url;
