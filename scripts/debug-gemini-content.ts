@@ -28,6 +28,6 @@ async function fetchJina(url: string) {
 }
 
 (async () => {
-    const url = "https://gemini.google.com/share/201444bc1cb4";
+    const url = "https://gemini.google.com/share/531c63b0f081";
     await fetchJina(url);
 })();

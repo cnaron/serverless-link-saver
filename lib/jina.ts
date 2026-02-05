@@ -14,7 +14,7 @@ export async function fetchPageContent(url: string): Promise<PageContent> {
                 // "X-Target-Selector": "body" // Removed to allow smarter extraction
             },
             next: { revalidate: 3600 } // Cache for 1 hour
-        });
+        } as any);
 
         if (!response.ok) {
             throw new Error(`Jina API error: ${response.statusText}`);
