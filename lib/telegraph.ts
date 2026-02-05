@@ -379,27 +379,36 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
     const finalNodes = [...headerNodes, ...contentNodes];
 
     // Deduplication Strategy:
-    // If the first content node is an H3/H4 (Markdown H1/H2 becomes H3/H4 in our parser)
+    // If ANY of the first 5 content nodes is an H3/H4 (Markdown H1/H2)
     // AND its text closely matches the page title, remove it.
-    // Telegra.ph renders the page 'title' as a massive H1 automatically.
+    // This handles cases where navigation links or author info appear before the body title.
     if (finalNodes.length > 0) {
-        const firstNode = finalNodes[0];
-        // Check if it's a heading node
-        // Check if it's a heading node
-        if (firstNode.tag === 'h3' || firstNode.tag === 'h4') {
-            // Helper to see all text
-            const getAllText = (n: any): string => {
-                if (typeof n === 'string') return n;
-                if (n.text) return n.text;
-                if (n.children && Array.isArray(n.children)) return n.children.map(getAllText).join('');
-                return '';
-            }
-            const nodeText = getAllText(firstNode).trim();
+        // Limit scan to first 5 nodes to avoid false positives deep in text
+        const limit = Math.min(finalNodes.length, 5);
+        for (let i = 0; i < limit; i++) {
+            const node = finalNodes[i];
 
-            // Loose comparison: check if one includes the other or significant overlap
-            // e.g. "My Title" vs "My Title" or "My Title - Blog"
-            if (nodeText && (opts.title.includes(nodeText) || nodeText.includes(opts.title))) {
-                finalNodes.shift(); // Remove the duplicate title header
+            // Check if it's a heading node or even a strong paragraph that looks like a title
+            if (node.tag === 'h3' || node.tag === 'h4') {
+                // Helper to see all text
+                const getAllText = (n: any): string => {
+                    if (typeof n === 'string') return n;
+                    if (n.text) return n.text;
+                    if (n.children && Array.isArray(n.children)) return n.children.map(getAllText).join('');
+                    return '';
+                }
+                const nodeText = getAllText(node).trim();
+
+                // Normalize for comparison: remove all whitespace and lowercase
+                const normTitle = opts.title.toLowerCase().replace(/\s+/g, '');
+                const normNodeText = nodeText.toLowerCase().replace(/\s+/g, '');
+
+                // Check for loose containment or equality
+                if (normNodeText && (normTitle.includes(normNodeText) || normNodeText.includes(normTitle))) {
+                    console.log(`[Telegraph] Removing duplicate title (at index ${i}): "${nodeText}" matches "${opts.title}"`);
+                    finalNodes.splice(i, 1); // Remove this node
+                    break; // Only remove the first match
+                }
             }
         }
     }
