@@ -91,24 +91,35 @@ export async function POST(req: NextRequest) {
 
                     // ─── Stage 5: Title & Metadata Refinement ───
                     let finalTitle = title;
+
+                    // List of generic titles that should be ignored in favor of content-based extraction
+                    const genericTitles = [
+                        "Gemini - direct access to Google AI",
+                        "ChatGPT",
+                        "Claude",
+                        "X", "Post", "Tweet", "Thread"
+                    ];
+
                     const isTwitter = url.includes("twitter.com") || url.includes("x.com");
-                    if (isTwitter) {
-                        const genericTitles = ["X", "Post", "Tweet", "Thread"];
-                        const isGeneric = genericTitles.some(t => title.trim() === t) ||
-                            title.includes("on X") ||
-                            title.includes("on Twitter") ||
-                            title.length < 10;
+                    const isGenericAI = url.includes("gemini.google.com") || url.includes("chatgpt.com") || url.includes("claude.ai");
 
-                        if (isGeneric) {
-                            const lines = content.split('\n')
-                                .map(l => l.replace(/^#+\s*/, '').trim())
-                                .filter(l => l.length > 0)
-                                .filter(l => !genericTitles.includes(l));
+                    const isGeneric = genericTitles.some(t => title.trim().includes(t)) ||
+                        title.includes("on X") ||
+                        title.includes("on Twitter") ||
+                        (isTwitter && title.length < 10) ||
+                        (isGenericAI && title.length < 30); // frequent generic ai titles are short or fixed
 
-                            if (lines.length > 0) {
-                                const firstLine = lines[0].slice(0, 80);
-                                finalTitle = `${firstLine}${lines[0].length >= 80 ? '…' : ''}`;
-                            }
+                    if (isGeneric) {
+                        const lines = content.split('\n')
+                            .map(l => l.replace(/^#+\s*/, '').trim()) // Remove markdown headers
+                            .filter(l => l.length > 0)
+                            .filter(l => !genericTitles.some(g => l.includes(g))); // Don't pick generic lines
+
+                        if (lines.length > 0) {
+                            // Find the first line that looks like a title (not too short, likely first non-empty)
+                            const candidate = lines[0];
+                            const firstLine = candidate.slice(0, 100);
+                            finalTitle = `${firstLine}${candidate.length >= 100 ? '…' : ''}`;
                         }
                     }
 
