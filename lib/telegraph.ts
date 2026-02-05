@@ -385,11 +385,16 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
     if (finalNodes.length > 0) {
         const firstNode = finalNodes[0];
         // Check if it's a heading node
+        // Check if it's a heading node
         if (firstNode.tag === 'h3' || firstNode.tag === 'h4') {
-            const nodeText = firstNode.children
-                .filter((c: any) => typeof c === 'string')
-                .join('')
-                .trim();
+            // Helper to see all text
+            const getAllText = (n: any): string => {
+                if (typeof n === 'string') return n;
+                if (n.text) return n.text;
+                if (n.children && Array.isArray(n.children)) return n.children.map(getAllText).join('');
+                return '';
+            }
+            const nodeText = getAllText(firstNode).trim();
 
             // Loose comparison: check if one includes the other or significant overlap
             // e.g. "My Title" vs "My Title" or "My Title - Blog"
