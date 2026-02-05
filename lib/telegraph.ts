@@ -378,6 +378,27 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
 
     const finalNodes = [...headerNodes, ...contentNodes];
 
+    // Deduplication Strategy:
+    // If the first content node is an H3/H4 (Markdown H1/H2 becomes H3/H4 in our parser)
+    // AND its text closely matches the page title, remove it.
+    // Telegra.ph renders the page 'title' as a massive H1 automatically.
+    if (finalNodes.length > 0) {
+        const firstNode = finalNodes[0];
+        // Check if it's a heading node
+        if (firstNode.tag === 'h3' || firstNode.tag === 'h4') {
+            const nodeText = firstNode.children
+                .filter((c: any) => typeof c === 'string')
+                .join('')
+                .trim();
+
+            // Loose comparison: check if one includes the other or significant overlap
+            // e.g. "My Title" vs "My Title" or "My Title - Blog"
+            if (nodeText && (opts.title.includes(nodeText) || nodeText.includes(opts.title))) {
+                finalNodes.shift(); // Remove the duplicate title header
+            }
+        }
+    }
+
     const page = await ph.createPage(token!, opts.title, finalNodes, {
         author_name: `LinkSaver • ${simpleDate}`, // "LinkSaver • 2026/02/04"
         author_url: opts.url, // Clicking author jumps to original
