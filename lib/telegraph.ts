@@ -333,7 +333,8 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
 
     const headerNodes: any[] = [];
 
-    // 0. Hero Image
+    /*
+    // 0. Hero Image - REMOVED per user request
     if (opts.image) {
         headerNodes.push({
             tag: 'img',
@@ -341,6 +342,7 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
         });
         headerNodes.push({ tag: 'br' }); // Spacing
     }
+    */
 
     // Strategy Update:
     // 1. Metadata (Link/Date) -> Moved to 'Author' field natively supported by IV
