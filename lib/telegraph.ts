@@ -174,6 +174,43 @@ function processToken(token: any): any {
         };
     }
 
+    if (token.type === 'table') {
+        // Convert Markdown table to ASCII table for Telegra.ph (inside pre/code)
+        const headers = token.header.map((h: any) => h.text);
+        const alignments = token.align;
+        const rows = token.rows.map((row: any[]) => row.map((cell: any) => cell.text));
+
+        // Calculate column widths
+        const colWidths = headers.map((h: string, i: number) => {
+            let max = h.length;
+            rows.forEach((row: string[]) => {
+                if (row[i] && row[i].length > max) max = row[i].length;
+            });
+            return max;
+        });
+
+        // Helper to pad string
+        const pad = (str: string, length: number) => {
+            return str + ' '.repeat(Math.max(0, length - (str || '').length));
+        };
+
+        // Build Table String
+        let tableStr = '| ' + headers.map((h: string, i: number) => pad(h, colWidths[i])).join(' | ') + ' |\n';
+        tableStr += '|-' + headers.map((_: any, i: number) => '-'.repeat(colWidths[i])).join('-|-') + '-|\n';
+
+        rows.forEach((row: string[]) => {
+            tableStr += '| ' + row.map((cell: string, i: number) => pad(cell || '', colWidths[i])).join(' | ') + ' |\n';
+        });
+
+        return {
+            tag: 'pre',
+            children: [{
+                tag: 'code',
+                children: [tableStr]
+            }]
+        };
+    }
+
     // 4. HTML parsing - Robust Attempt
     if (token.type === 'html') {
         const html = token.text.trim();
@@ -230,7 +267,8 @@ function markdownToNodes(markdown: string): any[] {
     };
 
     tokens.forEach(token => {
-        addNode(processToken(token));
+        const processed = processToken(token);
+        addNode(processed);
     });
 
     // Group consecutive inline nodes into <p>
@@ -252,6 +290,7 @@ function markdownToNodes(markdown: string): any[] {
         // If node is an object with a tag, check if it's a block tag
         const isBlock = typeof node === 'object' && node.tag && BLOCK_TAGS.includes(node.tag);
 
+        // Treat pre/code (tables) as block
         if (isBlock) {
             flushBuffer();
             finalNodes.push(node);
@@ -279,9 +318,6 @@ interface TelegraphPageOptions {
 /**
  * Uploads content to Telegra.ph with rich header and metadata.
  */
-/**
- * Uploads content to Telegra.ph with rich header and metadata.
- */
 export async function createTelegraphPage(opts: TelegraphPageOptions) {
     let token = ACCESS_TOKEN;
 
@@ -297,27 +333,38 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
 
     const headerNodes: any[] = [];
 
+    // 0. Hero Image
+    if (opts.image) {
+        headerNodes.push({
+            tag: 'img',
+            attrs: { src: opts.image }
+        });
+        headerNodes.push({ tag: 'br' }); // Spacing
+    }
+
     // Strategy Update:
     // 1. Metadata (Link/Date) -> Moved to 'Author' field natively supported by IV
-    // 2. Summary/Insight -> Converted to <p> to ensure they appear in Telegram Card Preview
+    // 2. Summary/Insight -> REMOVED from body per user request (User wants clean original text)
 
+    /* 
+    // REMOVED: Summary & Insight are now only in Telegram Message
     if (opts.summary) {
-        headerNodes.push({
-            tag: 'p',
+        headerNodes.push({ 
+            tag: 'p', 
             children: [
                 { tag: 'b', children: ['📝 AI 摘要：'] },
                 opts.summary
-            ]
+            ] 
         });
     }
 
     if (opts.insight) {
-        headerNodes.push({
-            tag: 'p',
+        headerNodes.push({ 
+            tag: 'p', 
             children: [
                 { tag: 'b', children: ['💡 Insight：'] },
                 opts.insight
-            ]
+            ] 
         });
     }
 
@@ -325,6 +372,7 @@ export async function createTelegraphPage(opts: TelegraphPageOptions) {
     if (headerNodes.length > 0) {
         headerNodes.push({ tag: 'hr' });
     }
+    */
 
     const finalNodes = [...headerNodes, ...contentNodes];
 
